@@ -188,7 +188,6 @@ constexpr inline int get_lsb_index(unsigned long long x) {
     return __builtin_ctzll(x);
 }
 
-
 static U64 magic_number_candidate() {
     U64 n1 = random() | (random() << 32);
     U64 n2 = random() | (random() << 32);
