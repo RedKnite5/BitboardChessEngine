@@ -4,6 +4,8 @@
 #include <cstring> // For memset
 #include <random>  // For random number generation
 #include <type_traits>
+#include <vector>
+#include <array>
 
 using U64 = uint64_t;
 
@@ -27,6 +29,17 @@ enum Square {
     A6, B6, C6, D6, E6, F6, G6, H6,
     A7, B7, C7, D7, E7, F7, G7, H7,
     A8, B8, C8, D8, E8, F8, G8, H8, No_Square
+};
+
+const char *square_coords[] = {
+    "A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1",
+    "A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2",
+    "A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3",
+    "A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4",
+    "A5", "B5", "C5", "D5", "E5", "F5", "G5", "H5",
+    "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6",
+    "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
+    "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "NONE"
 };
 
 
@@ -252,11 +265,86 @@ const U64 rookMagicNumbers[64] = {
 
 
 
-// Attack masks for pawns, indexed by color and square (0-47 for squares A2-H7)
-// indeces 0-7 are empty as pawns cannot be on the first rank
-U64 pawnAttackMasks[2][56];
-U64 knightAttackMasks[64];
-U64 kingAttackMasks[64];
+constexpr U64 generatePawnAttackMask(U64 square, bool color) {
+    U64 mask = 0;
+    if (color) { // White pawns
+        mask |= (square << 9) & not_a_file; // Capture right
+        mask |= (square << 7) & not_h_file; // Capture left
+    } else {     // Black pawns
+        mask |= (square >> 9) & not_h_file; // Capture left (white's perspective)
+        mask |= (square >> 7) & not_a_file; // Capture right
+    }
+    return mask;
+}
+constexpr auto generatePawnAttackMasks() {
+    std::array<std::array<U64, 64>, 2> pawnAttackMasks = {};
+    for (int i = 0; i < 64; ++i) {
+        pawnAttackMasks[white][i] = generatePawnAttackMask(1ULL << i, white);
+        pawnAttackMasks[black][i] = generatePawnAttackMask(1ULL << i, black);
+    }
+    return pawnAttackMasks;
+}
+constexpr const auto pawnAttackMasks = generatePawnAttackMasks();
+
+constexpr auto generatePawnPushMasks() {
+    std::array<std::array<U64, 56>, 2> pawnPushMasks = {};
+    for (unsigned int i=0; i<56; ++i) {
+        pawnPushMasks[white][i] = 1ULL << (i + 8);
+        if (i >= 8) {
+            pawnPushMasks[black][i] = 1ULL << (i - 8);
+        }
+        if (i >= 8 && i <= 15) {
+            pawnPushMasks[white][i] |= 1ULL << (i + 16);
+        }
+        if (i >= 48 && i <= 55) {
+            pawnPushMasks[black][i] |= 1ULL << (i - 16);
+        }
+    }
+    return pawnPushMasks;
+}
+constexpr auto pawnPushMasks = generatePawnPushMasks();
+
+constexpr U64 generateKnightAttackMask(U64 square) {
+    U64 mask = 0;
+    mask |= (square << 15) & not_h_file; // Up-Left
+    mask |= (square << 17) & not_a_file; // Up-Right
+    mask |= (square >> 15) & not_a_file; // Down-Right
+    mask |= (square >> 17) & not_h_file; // Down-Left
+    mask |= (square << 6) & not_gh_files;  // Left-Up
+    mask |= (square << 10) & not_ab_files; // Right-Up
+    mask |= (square >> 6) & not_ab_files;  // Right-Down
+    mask |= (square >> 10) & not_gh_files; // Left-Down
+    return mask;
+}
+constexpr std::array<U64, 64> generateKnightAttackMasks() {
+    std::array<U64, 64> knightAttackMasks = {};
+    for (int i = 0; i < 64; ++i) {
+        knightAttackMasks[i] = generateKnightAttackMask(1ULL << i);
+    }
+    return knightAttackMasks;
+}
+constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
+
+constexpr U64 generateKingAttackMask(U64 square) {
+    U64 mask = 0;
+    mask |= (square << 1) & not_a_file; // Right
+    mask |= (square >> 1) & not_h_file; // Left
+    mask |= (square << 8);               // Up
+    mask |= (square >> 8);               // Down
+    mask |= (square << 9) & not_a_file;  // Up-Right
+    mask |= (square << 7) & not_h_file;  // Up-Left
+    mask |= (square >> 9) & not_h_file;  // Down-Left
+    mask |= (square >> 7) & not_a_file;  // Down-Right
+    return mask;
+}
+constexpr std::array<U64, 64> generateKingAttackMasks() {
+    std::array<U64, 64> kingAttackMasks = {};
+    for (int i = 0; i < 64; ++i) {
+        kingAttackMasks[i] = generateKingAttackMask(1ULL << i);
+    }
+    return kingAttackMasks;
+}
+constexpr std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
 
 U64 bishopPsudoAttackMasks[64];
 U64 rookPsudoAttackMasks[64];
@@ -264,11 +352,19 @@ U64 rookPsudoAttackMasks[64];
 U64 bishopAttackMasks[64][512]; // [square][occupancy variation]
 U64 rookAttackMasks[64][4096];  // [square][occupancy variation]
 
-#define count_bits __builtin_popcountll
 
-inline int get_lsb_index(U64 bitBoard) {
-    if (bitBoard == 0) return -1; // No bits set
-    return __builtin_ctzll(bitBoard); // Count trailing zeros
+inline int count_bits(unsigned long long x) {
+    return __builtin_popcountll(x);
+}
+
+inline int get_lsb_index(unsigned long long x) {
+    return __builtin_ctzll(x);
+}
+
+inline int get_lsb_index_safe(U64 bitBoard) {
+    int is_zero = bitBoard == 0;
+    int safe_ctz = get_lsb_index(bitBoard | is_zero);
+    return safe_ctz - is_zero;
 }
 
 static U64 magic_number_candidate() {
@@ -279,13 +375,13 @@ static U64 magic_number_candidate() {
 }
 
 enum Pieces {
-    r, n, b, q, k, p, // Black pieces
-    R, N, B, Q, K, P,  // White pieces
+    p, r, n, b, q, k,  // Black pieces
+    P, R, N, B, Q, K,  // White pieces
     Last
 };
-const char ascii_pieces[] = "rnbqkpRNBQKP";
-const char *unicode_pieces[12] = {"♖", "♘", "♗", "♕", "♔", "♙",
-                            "♜", "♞", "♝", "♛", "♚", "♟"};
+const char ascii_pieces[] = "prnbqkPRNBQK";
+const char *unicode_pieces[12] = {"♙", "♖", "♘", "♗", "♕", "♔",
+                            "♟", "♜", "♞", "♝", "♛", "♚"};
 
 
 const unsigned char Castle_none = 0;
@@ -294,12 +390,105 @@ const unsigned char Castle_wq = 1 << 1;
 const unsigned char Castle_bk = 1 << 2;
 const unsigned char Castle_bq = 1 << 3;
 
+inline int piece_select(Pieces piece, bool side) {
+    return piece + 6*side;
+}
+
+/*
+Moves
+0000 0000 0000 0000 0011 1111 Source square
+0000 0000 0000 1111 1100 0000 Target square
+0000 0000 1111 0000 0000 0000 Piece
+0000 1111 0000 0000 0000 0000 Promotion Piece
+0001 0000 0000 0000 0000 0000 Capture flag
+0010 0000 0000 0000 0000 0000 Double push flag
+0100 0000 0000 0000 0000 0000 Enpassant flag
+1000 0000 0000 0000 0000 0000 Castle flag
+*/
+int encode_move(int source,
+                int target,
+                int piece,
+                int promotion,
+                int capture,
+                int double_push,
+                int enpassant,
+                int castle) {
+    return source
+            | (target << 6)
+            | (piece << 12)
+            | (promotion << 16)
+            | (capture << 20)
+            | (double_push << 21)
+            | (enpassant << 22)
+            | (castle << 23);
+}
+
+inline int get_move_source(int move) {
+    const int source_mask = 0x3F;
+    return move & source_mask;
+}
+
+inline int get_move_target(int move) {
+    const int target_mask = 0xFC0;
+    return (move & target_mask) >> 6;
+}
+
+inline int get_move_piece(int move) {
+    const int piece_mask = 0xF000;
+    return (move & piece_mask) >> 12;
+}
+
+inline int get_promotion(int move) {
+    const int promotion_mask = 0xF0000;
+    return (move & promotion_mask) >> 16;
+}
+
+const int CAPTURE_FLAG = 0x100000;
+inline int get_capture_flag(int move) {
+    return move & CAPTURE_FLAG;
+}
+const int DOUBLE_PUSH_FLAG = 0x200000;
+inline int get_double_push_flag(int move) {
+    return move & DOUBLE_PUSH_FLAG;
+}
+const int ENPASSANT_FLAG = 0x400000;
+inline int get_enpassant_flag(int move) {
+    return move & ENPASSANT_FLAG;
+}
+const int CASTLE_FLAG = 0x800000;
+inline int get_castle_flag(int move) {
+    return move & CASTLE_FLAG;
+}
+
+void print_move(int move) {
+    printf("%c%s%s\n",
+        ascii_pieces[get_move_piece(move)],
+        square_coords[get_move_source(move)],
+        square_coords[get_move_target(move)]
+    );
+}
+
+void print_move_list(std::vector<int> &move_list) {
+    printf("Move List:\n");
+    for (unsigned int i=0; i < move_list.size(); i++) {
+        int move = move_list[i];
+        printf("%c%s%s Promotion: %c Capture: %d Double Push: %d Enpassant: %d Castle: %d\n",
+            ascii_pieces[get_move_piece(move)],
+            square_coords[get_move_source(move)],
+            square_coords[get_move_target(move)],
+            ascii_pieces[get_promotion(move)],
+            get_capture_flag(move) >> 20,
+            get_double_push_flag(move) >> 21,
+            get_enpassant_flag(move) >> 22,
+            get_castle_flag(move) >> 23
+        );
+    }
+}
 
 class Board {
   public:
     U64 bitboards[12];
-    U64 whitePieces = 0;
-    U64 blackPieces = 0;
+    U64 coloredPieces[2];
     U64 allPieces = 0;
     Square enPassantSquare = No_Square;
     unsigned short move;
@@ -311,14 +500,13 @@ class Board {
         turn = white;
         castleFlags = Castle_wk | Castle_wq | Castle_bk | Castle_bq;
         halfMoveClock = 0;
-        U64 whitePieces = 0xFFFF;
+        U64 coloredPieces[2] = {0xFFFFULL << 48, 0xFFFFULL};
         U64 whitePawns = 0xFF << 8;
         U64 whiteRooks = 1 | (1 << 7);
         U64 whiteKnights = (1 << 1) | (1 << 6);
         U64 whiteBishops = (1 << 2) | (1 << 5);
         U64 whiteQueens = 1 << 3;
         U64 whiteKing = 1 << 4;
-        U64 blackPieces = 0xFFFFULL << 48;
         U64 blackPawns = 0xFFULL << 48;
         U64 blackRooks = (1ULL << 56) | (1ULL << 63);
         U64 blackKnights = (1ULL << 57) | (1ULL << 62);
@@ -338,9 +526,9 @@ class Board {
         bitboards[10] = whiteKing;
         bitboards[11] = whitePawns;
 
-        whitePieces = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
-        blackPieces = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
-        allPieces = whitePieces | blackPieces;
+        coloredPieces[black] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
+        coloredPieces[white] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
+        allPieces = coloredPieces[black] | coloredPieces[white];
     }
 
     // Constructor to initialize from a FEN string
@@ -349,59 +537,59 @@ class Board {
         int i = 0;
         int square = 56;
         bool piecePlacement = true;
-        whitePieces = 0;
-        blackPieces = 0;
+        coloredPieces[white] = 0;
+        coloredPieces[black] = 0;
         allPieces = 0;
         while (piecePlacement) {
             char c = str[i];
             switch (c) {
                 case 'r':
                     bitboards[r] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'n':
                     bitboards[n] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'b':
                     bitboards[b] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'q':
                     bitboards[q] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'k':
                     bitboards[k] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'p':
                     bitboards[p] |= 1ULL << square;
-                    blackPieces |= 1ULL << square;
+                    coloredPieces[black] |= 1ULL << square;
                     break;
                 case 'R':
                     bitboards[R] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case 'N':
                     bitboards[N] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case 'B':
                     bitboards[B] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case 'Q':
                     bitboards[Q] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case 'K':
                     bitboards[K] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case 'P':
                     bitboards[P] |= 1ULL << square;
-                    whitePieces |= 1ULL << square;
+                    coloredPieces[white] |= 1ULL << square;
                     break;
                 case '/':
                     square -= 17;
@@ -421,12 +609,11 @@ class Board {
             i++;
             square++;
         }
-        printf("whitepieces: %ld", whitePieces);
 
         if (str[i] == 'w') {
-            move = 0; // White to move
+            turn = 1; // White to move
         } else if (str[i] == 'b') {
-            move = 1; // Black to move
+            turn = 0; // Black to move
         } else {
             std::cerr << "Invalid turn in FEN string turn: " << str[i] << std::endl;
             exit(EXIT_FAILURE);
@@ -499,8 +686,8 @@ class Board {
         }
         
         if (str[i] != ' ') {
-            std::cerr << "Invalid character after half-move clock in FEN string: " << str[i] << std::endl;
-            printf("str[i] = '%d'\n", str[i]);
+            std::cerr << "Invalid character after half-move clock in FEN string:" << std::endl;
+            std::cerr << "str[i] = '" << str[i] << "'" << std::endl;
             exit(EXIT_FAILURE);
         }
         i++;
@@ -512,7 +699,7 @@ class Board {
             i++;
         }
         // Update allPieces
-        allPieces = whitePieces | blackPieces;
+        allPieces = coloredPieces[white] | coloredPieces[black];
     }
 };
 
@@ -534,12 +721,12 @@ void printBitBoard(U64 bitBoard) {
 }
 
 
-void printBoard(Board board) {
+void printBoard(Board &board) {
     for (int row = 7; row >= 0; --row) {
         std::cout << row + 1 << "  ";
         for (int col = 0; col < 8; ++col) {
             int index = row * 8 + col;
-            for (int piece = r; piece != Last; ++piece) {
+            for (int piece = 0; piece != Last; ++piece) {
                 if (board.bitboards[piece] & (1ULL << index)) {
                     std::cout << unicode_pieces[piece] << " ";
                     break;
@@ -563,67 +750,8 @@ void printBoard(Board board) {
         }
     }
     std::cout << std::endl;
-    std::cout << "En Passant Square: " << board.enPassantSquare << std::endl;
+    std::cout << "En Passant Square: " << square_coords[board.enPassantSquare] << std::endl;
     std::cout << "Half Move Clock: " << board.halfMoveClock << std::endl;
-}
-
-
-U64 generatePawnAttackMask(U64 square, bool color) {
-    U64 mask = 0;
-    if (color) { // White pawns
-        mask |= (square << 9) & not_a_file; // Capture right
-        mask |= (square << 7) & not_h_file; // Capture left
-    } else {     // Black pawns
-        mask |= (square >> 9) & not_h_file; // Capture left (white's perspective)
-        mask |= (square >> 7) & not_a_file; // Capture right
-    }
-    //printBoardState(mask);
-    return mask;
-}
-
-void generatePawnAttackMasks() {
-    for (int i = 8; i < 56; ++i) {
-        pawnAttackMasks[white][i] = generatePawnAttackMask(1ULL << i, white);
-        pawnAttackMasks[black][i] = generatePawnAttackMask(1ULL << i, black);
-    }
-}
-
-U64 generateKnightAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 15) & not_h_file; // Up-Left
-    mask |= (square << 17) & not_a_file; // Up-Right
-    mask |= (square >> 15) & not_a_file; // Down-Right
-    mask |= (square >> 17) & not_h_file; // Down-Left
-    mask |= (square << 6) & not_gh_files;  // Left-Up
-    mask |= (square << 10) & not_ab_files; // Right-Up
-    mask |= (square >> 6) & not_ab_files;  // Right-Down
-    mask |= (square >> 10) & not_gh_files; // Left-Down
-    return mask;
-}
-
-void generateKnightAttackMasks() {
-    for (int i = 0; i < 64; ++i) {
-        knightAttackMasks[i] = generateKnightAttackMask(1ULL << i);
-    }
-}
-
-U64 generateKingAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 1) & not_a_file; // Right
-    mask |= (square >> 1) & not_h_file; // Left
-    mask |= (square << 8);               // Up
-    mask |= (square >> 8);               // Down
-    mask |= (square << 9) & not_a_file;  // Up-Right
-    mask |= (square << 7) & not_h_file;  // Up-Left
-    mask |= (square >> 9) & not_h_file;  // Down-Left
-    mask |= (square >> 7) & not_a_file;  // Down-Right
-    return mask;
-}
-
-void generateKingAttackMasks() {
-    for (int i = 0; i < 64; ++i) {
-        kingAttackMasks[i] = generateKingAttackMask(1ULL << i);
-    }
 }
 
 U64 generateBishopRelevantOccupancyMask(int square) {
@@ -754,7 +882,7 @@ U64 setOccupancy(int index, int bits_in_mask, U64 mask) {
     // index goes up to 2^bits_in_mask
     U64 occupancy = 0;
     for (int i = 0; i < bits_in_mask; ++i) {
-        int square = get_lsb_index(mask);
+        int square = get_lsb_index_safe(mask);
         mask &= mask - 1;
         if (index & (1 << i)) {
             occupancy |= (1ULL << square);
@@ -866,9 +994,10 @@ void init_magic_numbers() {
 
 
 void init_all() {
-    generatePawnAttackMasks();
-    generateKnightAttackMasks();
-    generateKingAttackMasks();
+    //generatePawnPushMasks();
+    //generatePawnAttackMasks();
+    //generateKnightAttackMasks();
+    //generateKingAttackMasks();
     generateSliderAttackMasks();
 }
 
@@ -890,21 +1019,97 @@ inline U64 get_queen_attacks(int square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-inline bool is_square_attacked(Board board, int square, bool side) {
-    bool attacked = pawnAttackMasks[!side][square] & board.bitboards[p + 6*side];
-    attacked |= knightAttackMasks[square] & board.bitboards[n + 6*side];
+inline U64 get_quiet_pawn_moves(int square, U64 occupancy, int side) {
+    int shift = side * 16 - 8;
+
+    // 0 if next pawn square, (square + 8), is blocked
+    // 1 if it is free
+    U64 next_square_blocked = 1ULL - (1ULL & (occupancy >> (square + shift)));
+    return next_square_blocked * (pawnPushMasks[side][square] & ~occupancy);
+}
+
+
+inline bool is_square_attacked(Board &board, int square, bool side) {
+    bool attacked = pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)];
+    attacked |= knightAttackMasks[square] & board.bitboards[piece_select(n, side)];
     if (attacked) return attacked;
-    attacked = get_bishop_attacks(square, board.allPieces) & (board.bitboards[b + 6*side] | board.bitboards[q + 6*side]);
+    attacked = get_bishop_attacks(square, board.allPieces);
+    attacked &= (board.bitboards[piece_select(b, side)] | board.bitboards[piece_select(q, side)]);
     if (attacked) return attacked;
-    attacked = get_rook_attacks(square, board.allPieces) & (board.bitboards[r + 6*side] | board.bitboards[q + 6*side]);
-    attacked |= kingAttackMasks[square] & board.bitboards[k + 6*side];
+    attacked = get_rook_attacks(square, board.allPieces);
+    attacked &= (board.bitboards[piece_select(r, side)] | board.bitboards[piece_select(q, side)]);
+    attacked |= kingAttackMasks[square] & board.bitboards[piece_select(k, side)];
     return attacked;
 }
 
 
 
+void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
+    bool side = board.turn;
+    U64 p_bb = board.bitboards[piece_select(p, side)];
+    printBitBoard(p_bb);
+    int source_sq, target_sq, cur_move;
+    while (p_bb) {
+        source_sq = get_lsb_index(p_bb);
+        bool not_promoting = source_sq < A7;
 
-void printAllAttackedSquares(Board board, bool side) {
+        U64 attacks = pawnAttackMasks[side][source_sq] & (board.coloredPieces[!side] | (1ULL << board.enPassantSquare));
+        int move = source_sq | (P << 12);
+
+        U64 pushes = get_quiet_pawn_moves(source_sq, board.allPieces, side);
+        while (pushes) {
+            target_sq = get_lsb_index(pushes);
+            cur_move = move | (target_sq << 6) | ((target_sq == source_sq + (side*32 - 16)) << 21);
+            move_list.push_back(cur_move);
+            pushes ^= (1ULL << target_sq);
+        }
+
+        move |= CAPTURE_FLAG;
+
+        while (attacks) {
+            target_sq = get_lsb_index(attacks);
+            cur_move = move | (target_sq << 6);
+
+            if (not_promoting) {
+                move_list.push_back(cur_move | ((board.enPassantSquare == target_sq) << 22));
+            } else {
+                move_list.push_back(cur_move | (piece_select(q, side) << 16));
+                move_list.push_back(cur_move | (piece_select(b, side) << 16));
+                move_list.push_back(cur_move | (piece_select(n, side) << 16));
+                move_list.push_back(cur_move | (piece_select(r, side) << 16));
+            }
+
+            attacks ^= (1ULL << target_sq);
+        }
+
+        p_bb ^= (1ULL << source_sq);
+    }
+}
+
+
+
+inline void generate_moves(Board &board, std::vector<int> &move_list) {
+    move_list.clear();
+    bool side = board.turn;
+    int source_sq;
+    int target_sq;
+    
+
+
+
+    generate_pawn_moves(board, move_list);
+
+    U64 kn_bb = board.bitboards[piece_select(n, side)];
+    while (kn_bb) {
+        source_sq = get_lsb_index(kn_bb);
+
+        U64 attacks = knightAttackMasks[source_sq] & ~board.coloredPieces[side];
+
+    }
+    
+}
+
+void printAllAttackedSquares(Board &board, bool side) {
     for (int row = 7; row >= 0; --row) {
         std::cout << row + 1 << "  ";
         for (int col = 0; col < 8; ++col) {
