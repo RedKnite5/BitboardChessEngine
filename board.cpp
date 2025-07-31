@@ -7,6 +7,8 @@
 #include <vector>
 #include <array>
 
+#include "AttackMasks.cpp"
+
 using U64 = uint64_t;
 
 
@@ -40,92 +42,6 @@ const char *square_coords[] = {
     "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6",
     "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
     "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "NONE"
-};
-
-
-/*
-   not A file
-
-8  . 1 1 1 1 1 1 1
-7  . 1 1 1 1 1 1 1
-6  . 1 1 1 1 1 1 1
-5  . 1 1 1 1 1 1 1
-4  . 1 1 1 1 1 1 1
-3  . 1 1 1 1 1 1 1
-2  . 1 1 1 1 1 1 1
-1  . 1 1 1 1 1 1 1
-
-   A B C D E F G H
-*/
-const U64 not_a_file = 18374403900871474942ULL;
-
-/*
-   not H file
-8  1 1 1 1 1 1 1 .
-7  1 1 1 1 1 1 1 .
-6  1 1 1 1 1 1 1 .
-5  1 1 1 1 1 1 1 .
-4  1 1 1 1 1 1 1 .
-3  1 1 1 1 1 1 1 .
-2  1 1 1 1 1 1 1 .
-1  1 1 1 1 1 1 1 .
-
-   A B C D E F G H
-*/
-const U64 not_h_file = 9187201950435737471ULL;
-
-/*
-   not AB files
-8  . . 1 1 1 1 1 1
-7  . . 1 1 1 1 1 1
-6  . . 1 1 1 1 1 1
-5  . . 1 1 1 1 1 1
-4  . . 1 1 1 1 1 1
-3  . . 1 1 1 1 1 1
-2  . . 1 1 1 1 1 1
-1  . . 1 1 1 1 1 1
-
-   A B C D E F G H
-*/
-const U64 not_ab_files = 18229723555195321596ULL;
-
-/*
-   not GH files
-8  1 1 1 1 1 1 . .
-7  1 1 1 1 1 1 . .
-6  1 1 1 1 1 1 . .
-5  1 1 1 1 1 1 . .
-4  1 1 1 1 1 1 . .
-3  1 1 1 1 1 1 . .
-2  1 1 1 1 1 1 . .
-1  1 1 1 1 1 1 . .
-
-   A B C D E F G H
-*/
-const U64 not_gh_files = 4557430888798830399ULL;
-
-
-// Bishop relivant occupancy bit counts
-const int bishop_relevant_occupancy_bits[64] = {
-    6, 5, 5, 5, 5, 5, 5, 6,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 5, 5, 5, 5, 5, 5, 6
-};
-// Rook relivant occupancy bit counts
-const int rook_relevant_occupancy_bits[64] = {
-    12, 11, 11, 11, 11, 11, 11, 12,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    12, 11, 11, 11, 11, 11, 11, 12
 };
 
 
@@ -264,108 +180,14 @@ const U64 rookMagicNumbers[64] = {
 };
 
 
-
-constexpr U64 generatePawnAttackMask(U64 square, bool color) {
-    U64 mask = 0;
-    if (color) { // White pawns
-        mask |= (square << 9) & not_a_file; // Capture right
-        mask |= (square << 7) & not_h_file; // Capture left
-    } else {     // Black pawns
-        mask |= (square >> 9) & not_h_file; // Capture left (white's perspective)
-        mask |= (square >> 7) & not_a_file; // Capture right
-    }
-    return mask;
-}
-constexpr auto generatePawnAttackMasks() {
-    std::array<std::array<U64, 64>, 2> pawnAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        pawnAttackMasks[white][i] = generatePawnAttackMask(1ULL << i, white);
-        pawnAttackMasks[black][i] = generatePawnAttackMask(1ULL << i, black);
-    }
-    return pawnAttackMasks;
-}
-constexpr const auto pawnAttackMasks = generatePawnAttackMasks();
-
-constexpr auto generatePawnPushMasks() {
-    std::array<std::array<U64, 56>, 2> pawnPushMasks = {};
-    for (unsigned int i=0; i<56; ++i) {
-        pawnPushMasks[white][i] = 1ULL << (i + 8);
-        if (i >= 8) {
-            pawnPushMasks[black][i] = 1ULL << (i - 8);
-        }
-        if (i >= 8 && i <= 15) {
-            pawnPushMasks[white][i] |= 1ULL << (i + 16);
-        }
-        if (i >= 48 && i <= 55) {
-            pawnPushMasks[black][i] |= 1ULL << (i - 16);
-        }
-    }
-    return pawnPushMasks;
-}
-constexpr auto pawnPushMasks = generatePawnPushMasks();
-
-constexpr U64 generateKnightAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 15) & not_h_file; // Up-Left
-    mask |= (square << 17) & not_a_file; // Up-Right
-    mask |= (square >> 15) & not_a_file; // Down-Right
-    mask |= (square >> 17) & not_h_file; // Down-Left
-    mask |= (square << 6) & not_gh_files;  // Left-Up
-    mask |= (square << 10) & not_ab_files; // Right-Up
-    mask |= (square >> 6) & not_ab_files;  // Right-Down
-    mask |= (square >> 10) & not_gh_files; // Left-Down
-    return mask;
-}
-constexpr std::array<U64, 64> generateKnightAttackMasks() {
-    std::array<U64, 64> knightAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        knightAttackMasks[i] = generateKnightAttackMask(1ULL << i);
-    }
-    return knightAttackMasks;
-}
-constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
-
-constexpr U64 generateKingAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 1) & not_a_file; // Right
-    mask |= (square >> 1) & not_h_file; // Left
-    mask |= (square << 8);               // Up
-    mask |= (square >> 8);               // Down
-    mask |= (square << 9) & not_a_file;  // Up-Right
-    mask |= (square << 7) & not_h_file;  // Up-Left
-    mask |= (square >> 9) & not_h_file;  // Down-Left
-    mask |= (square >> 7) & not_a_file;  // Down-Right
-    return mask;
-}
-constexpr std::array<U64, 64> generateKingAttackMasks() {
-    std::array<U64, 64> kingAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        kingAttackMasks[i] = generateKingAttackMask(1ULL << i);
-    }
-    return kingAttackMasks;
-}
-constexpr std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
-
-U64 bishopPsudoAttackMasks[64];
-U64 rookPsudoAttackMasks[64];
-
-U64 bishopAttackMasks[64][512]; // [square][occupancy variation]
-U64 rookAttackMasks[64][4096];  // [square][occupancy variation]
-
-
-inline int count_bits(unsigned long long x) {
+constexpr inline int count_bits(unsigned long long x) {
     return __builtin_popcountll(x);
 }
 
-inline int get_lsb_index(unsigned long long x) {
+constexpr inline int get_lsb_index(unsigned long long x) {
     return __builtin_ctzll(x);
 }
 
-inline int get_lsb_index_safe(U64 bitBoard) {
-    int is_zero = bitBoard == 0;
-    int safe_ctz = get_lsb_index(bitBoard | is_zero);
-    return safe_ctz - is_zero;
-}
 
 static U64 magic_number_candidate() {
     U64 n1 = random() | (random() << 32);
@@ -393,6 +215,14 @@ const unsigned char Castle_bq = 1 << 3;
 inline int piece_select(Pieces piece, bool side) {
     return piece + 6*side;
 }
+
+const int TARGET_SHIFT = 6;
+const int PIECE_SHIFT = 12;
+const int PROMOTION_SHIFT = 16;
+const int CAPTURE_SHIFT = 20;
+const int DOUBLE_SHIFT = 21;
+const int ENPASSANT_SHIFT = 22;
+const int CASTLE_SHIFT = 23;
 
 /*
 Moves
@@ -754,169 +584,8 @@ void printBoard(Board &board) {
     std::cout << "Half Move Clock: " << board.halfMoveClock << std::endl;
 }
 
-U64 generateBishopRelevantOccupancyMask(int square) {
-    U64 mask = 0;
 
-    int tr = square / 8;
-    int tf = square % 8;
-
-    for (int i = 1; i < 8; ++i) {
-        if (tr + i < 7 && tf + i < 7) {
-            // Up-Right
-            mask |= (1ULL << ((tr + i) * 8 + (tf + i)));
-        }
-        if (tr - i >= 1 && tf - i >= 1) {
-            // Down-Left
-            mask |= (1ULL << ((tr - i) * 8 + (tf - i)));
-        }
-        if (tr + i < 7 && tf - i >= 1) {
-            // Up-Left
-            mask |= (1ULL << ((tr + i) * 8 + (tf - i)));
-        }
-        if (tr - i >= 1 && tf + i < 7) {
-            // Down-Right
-            mask |= (1ULL << ((tr - i) * 8 + (tf + i)));
-        }
-    }
-    return mask;
-}
-
-U64 generateBishopAttackMask(int square, U64 occupied) {
-    U64 mask = 0;
-
-    int tr = square / 8;
-    int tf = square % 8;
-
-    for (int i = tr, j = tf; i < 8 && j < 8; ++i, ++j) {
-        // Up-Right
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break; // Stop if occupied
-        }
-    }
-    for (int i = tr, j = tf; i >= 0 && j >= 0; --i, --j) {
-        // Down-Left
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    for (int i = tr, j = tf; i < 8 && j >= 0; ++i, --j) {
-        // Up-Left
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    for (int i = tr, j = tf; i >= 0 && j < 8; --i, ++j) {
-        // Down-Right
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    // Remove the square itself from the mask
-    mask ^= 1ULL << square;
-
-    return mask;
-}
-
-U64 generateRookRelevantOccupancyMask(int square) {
-    U64 mask = 0;
-
-    int tr = square / 8;
-    int tf = square % 8;
-
-    for (int i = 1; i < 7; ++i) {
-        if (i != tr) {
-            // Vertical
-            mask |= (1ULL << (i * 8 + tf));
-        }
-        if (i != tf) {
-            // Horizontal
-            mask |= (1ULL << (tr * 8 + i));
-        }
-    }
-    return mask;
-}
-
-U64 generateRookAttackMask(int square, U64 occupied) {
-    U64 mask = 0;
-
-    int tr = square / 8;
-    int tf = square % 8;
-
-    for (int i = tr+1; i < 8; ++i) {
-        // Vertical Up
-        mask |= (1ULL << (i * 8 + tf));
-        if (occupied & (1ULL << (i * 8 + tf))) {
-            break; // Stop if occupied
-        }
-    }
-    for (int i = tr-1; i >= 0; --i) {
-        // Vertical Down
-        mask |= (1ULL << (i * 8 + tf));
-        if (occupied & (1ULL << (i * 8 + tf))) {
-            break;
-        }
-    }
-    for (int i = tf+1; i < 8; ++i) {
-        // Horizontal Right
-        mask |= (1ULL << (tr * 8 + i));
-        if (occupied & (1ULL << (tr * 8 + i))) {
-            break;
-        }
-    }
-    for (int i = tf-1; i >= 0; --i) {
-        // Horizontal Left
-        mask |= (1ULL << (tr * 8 + i));
-        if (occupied & (1ULL << (tr * 8 + i))) {
-            break;
-        }
-    }
-
-    return mask;
-}
-
-U64 setOccupancy(int index, int bits_in_mask, U64 mask) {
-    // index goes up to 2^bits_in_mask
-    U64 occupancy = 0;
-    for (int i = 0; i < bits_in_mask; ++i) {
-        int square = get_lsb_index_safe(mask);
-        mask &= mask - 1;
-        if (index & (1 << i)) {
-            occupancy |= (1ULL << square);
-        }
-    }
-    return occupancy;
-}
-
-void generateSliderAttackMasks() {
-    for (int square=0; square < 64; ++square) {
-
-        bishopPsudoAttackMasks[square] = generateBishopRelevantOccupancyMask(square);
-        rookPsudoAttackMasks[square] = generateRookRelevantOccupancyMask(square);
-
-        int bishop_rel_occ_count = bishop_relevant_occupancy_bits[square];
-        int bishop_occupancy_indeces = 1ULL << bishop_rel_occ_count;
-
-        for (int i=0; i < bishop_occupancy_indeces; ++i) {
-            U64 occupancy = setOccupancy(i, bishop_rel_occ_count, bishopPsudoAttackMasks[square]);
-            int magic_index = (occupancy * bishopMagicNumbers[square]) >> (64 - 9);
-            bishopAttackMasks[square][magic_index] = generateBishopAttackMask(square, occupancy);
-        }
-
-        int rook_rel_occ_count = rook_relevant_occupancy_bits[square];
-        int rook_occupancy_indeces = 1ULL << rook_relevant_occupancy_bits[square];
-
-        for (int i=0; i < rook_occupancy_indeces; ++i) {
-            U64 occupancy = setOccupancy(i, rook_rel_occ_count, rookPsudoAttackMasks[square]);
-            int magic_index = (occupancy * rookMagicNumbers[square]) >> (64 - 12);
-            rookAttackMasks[square][magic_index] = generateRookAttackMask(square, occupancy);
-        }
-    }
-}
-
+/* Magic Numbers
 U64 magic_number(int square, int relivant_bits, bool bishop) {
     U64 occupancies[4096];
     U64 attacks[4096];
@@ -974,6 +643,7 @@ U64 magic_number(int square, int relivant_bits, bool bishop) {
     }
 }
 
+
 void init_magic_numbers() {
     // Generate magic numbers for bishops
     for (int square = 0; square < 64; ++square) {
@@ -991,7 +661,7 @@ void init_magic_numbers() {
         std::cout << magic << ", " << std::endl;
     }
 }
-
+*/
 
 void init_all() {
     //generatePawnPushMasks();
@@ -1053,13 +723,17 @@ void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
         source_sq = get_lsb_index(p_bb);
         bool not_promoting = source_sq < A7;
 
-        U64 attacks = pawnAttackMasks[side][source_sq] & (board.coloredPieces[!side] | (1ULL << board.enPassantSquare));
-        int move = source_sq | (P << 12);
+        U64 attacks = pawnAttackMasks[side][source_sq];
+        attacks &= board.coloredPieces[!side] | (1ULL << board.enPassantSquare);
+        int move = source_sq | (P << PIECE_SHIFT);
 
         U64 pushes = get_quiet_pawn_moves(source_sq, board.allPieces, side);
         while (pushes) {
             target_sq = get_lsb_index(pushes);
-            cur_move = move | (target_sq << 6) | ((target_sq == source_sq + (side*32 - 16)) << 21);
+            cur_move = move | (target_sq << 6);
+
+            //                      Double Pawn FLag
+            cur_move |= ((target_sq == source_sq + (side*32 - 16)) << DOUBLE_SHIFT);
             move_list.push_back(cur_move);
             pushes ^= (1ULL << target_sq);
         }
@@ -1068,44 +742,58 @@ void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
 
         while (attacks) {
             target_sq = get_lsb_index(attacks);
-            cur_move = move | (target_sq << 6);
+            cur_move = move | (target_sq << TARGET_SHIFT);
 
             if (not_promoting) {
-                move_list.push_back(cur_move | ((board.enPassantSquare == target_sq) << 22));
+                //                               Enpassant FLag
+                int enpassant_flag = (board.enPassantSquare == target_sq) << ENPASSANT_SHIFT;
+                move_list.push_back(cur_move | enpassant_flag);
             } else {
-                move_list.push_back(cur_move | (piece_select(q, side) << 16));
-                move_list.push_back(cur_move | (piece_select(b, side) << 16));
-                move_list.push_back(cur_move | (piece_select(n, side) << 16));
-                move_list.push_back(cur_move | (piece_select(r, side) << 16));
+                //                               Promotion
+                move_list.push_back(cur_move | (piece_select(q, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(b, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(n, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(r, side) << PROMOTION_SHIFT));
             }
 
-            attacks ^= (1ULL << target_sq);
+            attacks ^= 1ULL << target_sq;
         }
 
-        p_bb ^= (1ULL << source_sq);
+        p_bb ^= 1ULL << source_sq;
     }
 }
 
-
-
-inline void generate_moves(Board &board, std::vector<int> &move_list) {
-    move_list.clear();
+void generate_knight_moves(Board &board, std::vector<int> &move_list) {
     bool side = board.turn;
-    int source_sq;
-    int target_sq;
-    
-
-
-
-    generate_pawn_moves(board, move_list);
-
     U64 kn_bb = board.bitboards[piece_select(n, side)];
     while (kn_bb) {
-        source_sq = get_lsb_index(kn_bb);
+        int source_sq = get_lsb_index(kn_bb);
 
         U64 attacks = knightAttackMasks[source_sq] & ~board.coloredPieces[side];
 
+        while (attacks) {
+            int target_sq = get_lsb_index(attacks);
+
+            bool capture_flag = (board.coloredPieces[!side] >> target_sq) & 1ULL;
+            int move = encode_move(source_sq, target_sq, piece_select(n, side), 0, capture_flag, 0, 0, 0);
+            move_list.push_back(move);
+
+            attacks ^= 1ULL << target_sq;
+        }
     }
+}
+
+void generate_slider_moves(Board &board, std::vector<int> &move_list) {
+
+}
+
+void generate_moves(Board &board, std::vector<int> &move_list) {
+    move_list.clear();
+
+    generate_pawn_moves(board, move_list);
+    generate_knight_moves(board, move_list);
+
+    
     
 }
 
