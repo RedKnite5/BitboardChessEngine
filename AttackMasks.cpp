@@ -1,17 +1,15 @@
-#include <cstdint>
-#include <cstdlib>
-#include <type_traits>
-#include <array>
 
 
-using U64 = uint64_t;
+//#include "AttackMasks.h"
 
+
+//using U64 = uint64_t;
 
 
 
 
-const bool black = false;
-const bool white = true;
+//const bool BLACK = false;
+//const bool WHITE = true;
 
 
 
@@ -29,7 +27,7 @@ const bool white = true;
 
    A B C D E F G H
 */
-const U64 not_a_file = 18374403900871474942ULL;
+const U64 NOT_A_FILE = 18374403900871474942ULL;
 
 /*
    not H file
@@ -76,7 +74,7 @@ const U64 not_ab_files = 18229723555195321596ULL;
 */
 const U64 not_gh_files = 4557430888798830399ULL;
 
-
+/*
 
 // Bishop relivant occupancy bit counts
 const int bishop_relevant_occupancy_bits[64] = {
@@ -101,9 +99,146 @@ const int rook_relevant_occupancy_bits[64] = {
     12, 11, 11, 11, 11, 11, 11, 12
 };
 
+
+const U64 bishopMagicNumbers[64] = {
+    563504205534720,
+    45618738787025920,
+    2308096063191515456,
+    1731707328970915840,
+    9306283732893904,
+    44118105427969,
+    1153492202715349504,
+    31595600497148160,
+    17872449519648,
+    2306124760211260544,
+    1154060603518814208,
+    655348581369648131,
+    619026120179968,
+    36028870302925056,
+    2323858524490437441,
+    72420501881921540,
+    1153071055385592337,
+    144257128157192224,
+    2918474399831818400,
+    2251804922413125,
+    20407571493947392,
+    55732055061826888,
+    144423069619324040,
+    154811237250924680,
+    1441723768841011233,
+    652124761694421508,
+    1224987993589809744,
+    1134696006164800,
+    1157706648215633920,
+    36591781365710912,
+    2315413708211228804,
+    88235825045512,
+    19709918454112256,
+    4857676733879041,
+    577591120586899586,
+    189120295995648,
+    5067116516605984,
+    586365157475911696,
+    149463865745232960,
+    72066537241973760,
+    38563172399187972,
+    13242474696904,
+    432521693656384000,
+    6919781102471086208,
+    144434364279705634,
+    2596431863577849984,
+    145804330019061921,
+    779038918443012,
+    72198422257584130,
+    4506116746903816,
+    72057611237196291,
+    866107334211077121,
+    9710955752095872,
+    1167012931561326608,
+    6936118264581881988,
+    4909816775243243524,
+    14293787607168,
+    468376560337190976,
+    2823546163255361,
+    738665243118707722,
+    4688407878279898145,
+    40532535163494410,
+    17596752134161,
+    85291385252758272
+};
+
+const U64 rookMagicNumbers[64] = {
+    612509890289811457,
+    3461019131139072137,
+    4629982029486755840,
+    1171015068221980674,
+    720580411540906241,
+    72130161872472832,
+    1197957784357306880,
+    144115326622402308,
+    2341889536000344640,
+    433823445298450440,
+    599049669208711176,
+    17600776388624,
+    18058379109072936,
+    22561982981079170,
+    25121852133214226,
+    2305958458471489664,
+    18157884781101136,
+    1153484510902894785,
+    3607383438964824064,
+    22520265882206257,
+    9009501373990912,
+    4613938934951510528,
+    1161933170732435472,
+    297240599166226688,
+    2341873047479287873,
+    5260230890756244480,
+    8796630418432,
+    1164324007659602048,
+    18581802478213168,
+    720576490673078784,
+    2311762818606598672,
+    290781243673411648,
+    756604823300210816,
+    8719954080065192960,
+    4623191308236752000,
+    4503883330158880,
+    4611756404892502272,
+    2323302966235145,
+    10191407704736256,
+    217017207597826112,
+    18017147289866240,
+    17593404560384,
+    63191836646441216,
+    4611703920396730372,
+    434599641783812098,
+    580966551289626629,
+    4503883095244929,
+    4612002683147157515,
+    2883448490564978240,
+    4630263439905275973,
+    72061992388526096,
+    1157566116634567681,
+    288379909884432388,
+    4611722388210516608,
+    253332160555009032,
+    9075265963360,
+    36031271333298433,
+    612509375432573058,
+    616997616906952769,
+    564067752747010,
+    72059827421184769,
+    36353211891842,
+    81206703450098756,
+    576461044378009634
+};
+
+
+
 constexpr inline int get_lsb_index_safe(U64 bitBoard) {
     int is_zero = bitBoard == 0;
-    int safe_ctz = get_lsb_index(bitBoard | is_zero);
+    int safe_ctz = __builtin_ctzll(bitBoard | is_zero);
     return safe_ctz - is_zero;
 }
 
@@ -112,19 +247,19 @@ constexpr inline int get_lsb_index_safe(U64 bitBoard) {
 constexpr U64 generatePawnAttackMask(U64 square, bool color) {
     U64 mask = 0;
     if (color) { // White pawns
-        mask |= (square << 9) & not_a_file; // Capture right
+        mask |= (square << 9) & NOT_A_FILE; // Capture right
         mask |= (square << 7) & not_h_file; // Capture left
     } else {     // Black pawns
-        mask |= (square >> 9) & not_h_file; // Capture left (white's perspective)
-        mask |= (square >> 7) & not_a_file; // Capture right
+        mask |= (square >> 9) & not_h_file; // Capture left (WHITE's perspective)
+        mask |= (square >> 7) & NOT_A_FILE; // Capture right
     }
     return mask;
 }
 constexpr auto generatePawnAttackMasks() {
     std::array<std::array<U64, 64>, 2> pawnAttackMasks = {};
     for (int i = 0; i < 64; ++i) {
-        pawnAttackMasks[white][i] = generatePawnAttackMask(1ULL << i, white);
-        pawnAttackMasks[black][i] = generatePawnAttackMask(1ULL << i, black);
+        pawnAttackMasks[WHITE][i] = generatePawnAttackMask(1ULL << i, WHITE);
+        pawnAttackMasks[BLACK][i] = generatePawnAttackMask(1ULL << i, BLACK);
     }
     return pawnAttackMasks;
 }
@@ -133,15 +268,15 @@ constexpr const auto pawnAttackMasks = generatePawnAttackMasks();
 constexpr auto generatePawnPushMasks() {
     std::array<std::array<U64, 56>, 2> pawnPushMasks = {};
     for (unsigned int i=0; i<56; ++i) {
-        pawnPushMasks[white][i] = 1ULL << (i + 8);
+        pawnPushMasks[WHITE][i] = 1ULL << (i + 8);
         if (i >= 8) {
-            pawnPushMasks[black][i] = 1ULL << (i - 8);
+            pawnPushMasks[BLACK][i] = 1ULL << (i - 8);
         }
         if (i >= 8 && i <= 15) {
-            pawnPushMasks[white][i] |= 1ULL << (i + 16);
+            pawnPushMasks[WHITE][i] |= 1ULL << (i + 16);
         }
         if (i >= 48 && i <= 55) {
-            pawnPushMasks[black][i] |= 1ULL << (i - 16);
+            pawnPushMasks[BLACK][i] |= 1ULL << (i - 16);
         }
     }
     return pawnPushMasks;
@@ -151,8 +286,8 @@ constexpr auto pawnPushMasks = generatePawnPushMasks();
 constexpr U64 generateKnightAttackMask(U64 square) {
     U64 mask = 0;
     mask |= (square << 15) & not_h_file; // Up-Left
-    mask |= (square << 17) & not_a_file; // Up-Right
-    mask |= (square >> 15) & not_a_file; // Down-Right
+    mask |= (square << 17) & NOT_A_FILE; // Up-Right
+    mask |= (square >> 15) & NOT_A_FILE; // Down-Right
     mask |= (square >> 17) & not_h_file; // Down-Left
     mask |= (square << 6) & not_gh_files;  // Left-Up
     mask |= (square << 10) & not_ab_files; // Right-Up
@@ -171,14 +306,14 @@ constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
 
 constexpr U64 generateKingAttackMask(U64 square) {
     U64 mask = 0;
-    mask |= (square << 1) & not_a_file; // Right
+    mask |= (square << 1) & NOT_A_FILE; // Right
     mask |= (square >> 1) & not_h_file; // Left
     mask |= (square << 8);               // Up
     mask |= (square >> 8);               // Down
-    mask |= (square << 9) & not_a_file;  // Up-Right
+    mask |= (square << 9) & NOT_A_FILE;  // Up-Right
     mask |= (square << 7) & not_h_file;  // Up-Left
     mask |= (square >> 9) & not_h_file;  // Down-Left
-    mask |= (square >> 7) & not_a_file;  // Down-Right
+    mask |= (square >> 7) & NOT_A_FILE;  // Down-Right
     return mask;
 }
 constexpr std::array<U64, 64> generateKingAttackMasks() {
@@ -369,3 +504,4 @@ constexpr auto &rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      /
 constexpr auto &bishopAttackMasks = attackTables.bishopAttackMasks;   // [square][occupancy variation]
 constexpr auto &rookAttackMasks = attackTables.rookAttackMasks;       // [square][occupancy variation]
 
+*/
