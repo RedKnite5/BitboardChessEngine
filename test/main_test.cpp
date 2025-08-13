@@ -155,6 +155,18 @@ TEST(MoveGeneration, TrickyPositionBlack) {
 }
 
 
+
+TEST(MoveGeneration, TestEnpassant1) {
+    const char *position = "k7/7P/8/3pP3/8/K7/8/8 w - d6 0 1";
+    Board bd = Board(position);
+    std::vector<int> res;
+    std::vector<int> expected = {27428, 5270244, 684023, 618487, 552951, 487415, 45584, 45648, 46160, 46608, 46672};
+    generate_moves(bd, res);
+    EXPECT_EQ(res, expected);
+}
+
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

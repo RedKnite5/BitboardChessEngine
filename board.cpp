@@ -598,7 +598,18 @@ constexpr std::array<std::array<U64, 2>, 2> castle_masks = {{
     {{castle_bq_mask, castle_bk_mask}},
     {{castle_wq_mask, castle_wk_mask}}
 }};
-//constexpr U64 castle_masks[4] = {castle_wk_mask, castle_wq_mask, castle_bk_mask, castle_bq_mask};
+
+constexpr std::array<char, 64> castling_rights = {
+    11, 15, 15, 15,  3, 15, 15,  7,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    14, 15, 15, 15, 12, 15, 15, 13
+};
+
 
 constexpr inline int piece_select(Pieces piece, bool side) {
     return piece + 6*side;
@@ -715,9 +726,12 @@ class Board {
     U64 allPieces = 0;
     Square enPassantSquare = No_Square;
     unsigned short move;
-    bool turn; // true for white, false for black
-    unsigned char castleFlags;
     unsigned short halfMoveClock;
+    unsigned char castleFlags;
+    bool turn; // true for white, false for black
+
+    // try bit fields some time?
+
     Board() {
         move = 0;
         turn = WHITE;
@@ -1112,7 +1126,7 @@ void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
     int source_sq, target_sq, cur_move;
     while (p_bb) {
         source_sq = get_lsb_index(p_bb);
-        bool not_promoting = source_sq < A7;
+        bool not_promoting = source_sq < A7 && side || source_sq > H2 && !side;
 
         U64 attacks = pawnAttackMasks[side][source_sq];
         attacks &= board.coloredPieces[!side] | (1ULL << board.enPassantSquare);
@@ -1123,9 +1137,18 @@ void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
             target_sq = get_lsb_index(pushes);
             cur_move = move | (target_sq << 6);
 
-            //                      Double Pawn FLag
-            cur_move |= ((target_sq == source_sq + (side*32 - 16)) << DOUBLE_SHIFT);
-            move_list.push_back(cur_move);
+            if (not_promoting) {
+                //                      Double Pawn FLag
+                cur_move |= ((target_sq == source_sq + (side*32 - 16)) << DOUBLE_SHIFT);
+                move_list.push_back(cur_move);
+            } else {
+                //                               Promotion
+                move_list.push_back(cur_move | (piece_select(q, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(b, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(n, side) << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (piece_select(r, side) << PROMOTION_SHIFT));
+            }
+
             pushes ^= (1ULL << target_sq);
         }
 
@@ -1300,9 +1323,89 @@ void generate_moves(Board &board, std::vector<int> &move_list) {
     generate_king_moves(board, move_list);
 }
 
+// copy board to make move
+Board make_move(Board board, int move) {
+
+    int source_sq = get_move_source(move);
+    int target_sq = get_move_target(move);
+    int piece = get_move_piece(move);
+    int promotion = get_promotion(move);
+    int capture = get_capture_flag(move);
+    int double_shift = get_double_push_flag(move);
+    int enpassant = get_enpassant_flag(move);
+    int castle = get_castle_flag(move);
+
+    bool side = board.turn;
+
+    // move piece on appropriate bitboard
+    board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
 
 
+    // TODO: Colored pieces bitboards
 
+    if (capture) {
+        // clear captured piece
+        int start = piece_select(p, !side);
+
+        U64 mask = ~(1ULL << target_sq);
+        for (int i=start; i < start+6; i++) {
+            board.bitboards[i] &= mask;
+        }
+
+    }
+
+    if (promotion) {
+        board.bitboards[piece_select(p, side)] ^= 1ULL << target_sq;
+        board.bitboards[promotion] ^= 1ULL << target_sq;
+    }
+
+    if (double_shift) {
+        // or source_sq + (side*16 - 8)
+        board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
+    } else {
+        board.enPassantSquare = No_Square;
+    }
+
+    if (enpassant) {
+        board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
+    }
+
+
+    if (castle) {
+        switch (target_sq) {
+        case C1:
+            board.bitboards[R] ^= 1ULL | (1ULL << D1);
+            break;
+        case G1:
+            board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            break;
+        case C8:
+            board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            break;
+        case G8:
+            board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            break;
+        
+        default:
+            assert(false);             // catch in debug
+            __builtin_unreachable();   // optimize in release
+        }
+    }
+
+    board.castleFlags &= castling_rights[source_sq];
+
+
+    return board;
+}
+
+
+Board make_capture_move(Board &board, int move) {
+    if (get_capture_flag(move)) {
+        return make_move(board, move);
+    }
+
+    
+}
 
 
 
