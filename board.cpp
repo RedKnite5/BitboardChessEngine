@@ -564,13 +564,14 @@ void init_all() {
 
 
 
-
+/*
 static U64 magic_number_candidate() {
     U64 n1 = random() | (random() << 32);
     U64 n2 = random() | (random() << 32);
     U64 n3 = random() | (random() << 32);
     return n1 & n2 & n3;
 }
+*/
 
 enum Pieces {
     p, r, n, b, q, k,  // Black pieces
@@ -976,7 +977,7 @@ void printBoard_stream(Board &board, std::ostream& out) {
     out << "Castle Flags: ";
     const char castling_key[] = "KQkq";
     for (int i = 0; i < 4; ++i) {
-        if ((board.castleFlags & 1 << i) != Castle_none) {
+        if ((board.castleFlags & 1 << (3-i)) != Castle_none) {
             out << castling_key[i];
         } else {
             out << "-";
@@ -1126,7 +1127,7 @@ void generate_pawn_moves(Board &board, std::vector<int> &move_list) {
     int source_sq, target_sq, cur_move;
     while (p_bb) {
         source_sq = get_lsb_index(p_bb);
-        bool not_promoting = source_sq < A7 && side || source_sq > H2 && !side;
+        bool not_promoting = (source_sq < A7 && side) || (source_sq > H2 && !side);
 
         U64 attacks = pawnAttackMasks[side][source_sq];
         attacks &= board.coloredPieces[!side] | (1ULL << board.enPassantSquare);
@@ -1309,6 +1310,14 @@ void generate_king_moves(Board &board, std::vector<int> &move_list) {
     }
 }
 
+
+inline bool is_king_exposed(Board &bd) {
+    if (is_square_attacked(bd, get_lsb_index(bd.bitboards[piece_select(k, !bd.turn)]), bd.turn)) {
+        return true;
+    }
+    return false;
+}
+
 void generate_moves(Board &board, std::vector<int> &move_list) {
     move_list.clear();
 
@@ -1340,8 +1349,7 @@ Board make_move(Board board, int move) {
     // move piece on appropriate bitboard
     board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
 
-
-    // TODO: Colored pieces bitboards
+    board.castleFlags &= castling_rights[source_sq];
 
     if (capture) {
         // clear captured piece
@@ -1351,7 +1359,7 @@ Board make_move(Board board, int move) {
         for (int i=start; i < start+6; i++) {
             board.bitboards[i] &= mask;
         }
-
+        board.castleFlags &= castling_rights[target_sq];
     }
 
     if (promotion) {
@@ -1360,8 +1368,8 @@ Board make_move(Board board, int move) {
     }
 
     if (double_shift) {
-        // or source_sq + (side*16 - 8)
         board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
+        //board.enPassantSquare = static_cast<Square>(source_sq + (side*16 - 8));
     } else {
         board.enPassantSquare = No_Square;
     }
@@ -1369,7 +1377,6 @@ Board make_move(Board board, int move) {
     if (enpassant) {
         board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
     }
-
 
     if (castle) {
         switch (target_sq) {
@@ -1392,13 +1399,20 @@ Board make_move(Board board, int move) {
         }
     }
 
-    board.castleFlags &= castling_rights[source_sq];
-
+    board.coloredPieces[BLACK] = board.bitboards[0];
+    board.coloredPieces[WHITE] = board.bitboards[6];
+    for (int i=1; i<6; i++) {
+        board.coloredPieces[BLACK] |= board.bitboards[i];
+        board.coloredPieces[WHITE] |= board.bitboards[i+6];
+    }
+    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
+    board.turn ^= 1;
 
     return board;
 }
 
 
+/*
 Board make_capture_move(Board &board, int move) {
     if (get_capture_flag(move)) {
         return make_move(board, move);
@@ -1406,7 +1420,7 @@ Board make_capture_move(Board &board, int move) {
 
     
 }
-
+*/
 
 
 

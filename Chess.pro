@@ -10,6 +10,20 @@ CONFIG += c++17
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000   # 100 million
 
+
+
+# Add Google Benchmark include directory
+INCLUDEPATH += /home/you/dev/benchmark/include
+
+# Add library search path
+LIBS += -L/home/you/dev/benchmark/build/src
+
+# Link against Google Benchmark and pthread
+LIBS += -lbenchmark -lpthread
+
+# If using BENCHMARK_MAIN(), you may also want:
+# LIBS += -lbenchmark_main
+
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
