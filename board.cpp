@@ -1512,17 +1512,16 @@ void generate_moves(Board &board, std::vector<int> &move_list) {
     }
 }
 
-// copy board to make move
-Board make_move(Board board, int move) {
 
+void make_move(Board &board, int move) {
     int source_sq = get_move_source(move);
     int target_sq = get_move_target(move);
     int piece = get_move_piece(move);
     int promotion = get_promotion(move);
-    int capture = get_capture_flag(move);
-    int double_shift = get_double_push_flag(move);
-    int enpassant = get_enpassant_flag(move);
-    int castle = get_castle_flag(move);
+    bool capture = get_capture_flag(move);
+    bool double_shift = get_double_push_flag(move);
+    bool enpassant = get_enpassant_flag(move);
+    bool castle = get_castle_flag(move);
 
     bool side = board.turn;
 
@@ -1530,6 +1529,9 @@ Board make_move(Board board, int move) {
     board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
 
     board.castleFlags &= castling_rights[source_sq];
+
+    board.halfMoveClock++;
+    board.move += !side;
 
     if (capture) {
         // clear captured piece
@@ -1540,12 +1542,19 @@ Board make_move(Board board, int move) {
             board.bitboards[i] &= mask;
         }
         board.castleFlags &= castling_rights[target_sq];
+        board.halfMoveClock = 0;
+    }
+
+    if (piece ==0 || piece == 6) {
+        board.halfMoveClock = 0;
     }
 
     if (promotion) {
         board.bitboards[piece_select(p, side)] ^= 1ULL << target_sq;
         board.bitboards[promotion] ^= 1ULL << target_sq;
     }
+    
+
 
     if (double_shift) {
         board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
@@ -1584,11 +1593,13 @@ Board make_move(Board board, int move) {
     for (int i=1; i<6; i++) {
         board.coloredPieces[BLACK] |= board.bitboards[i];
         board.coloredPieces[WHITE] |= board.bitboards[i+6];
+        board.allPieces |= board.bitboards[i];
+        board.allPieces |= board.bitboards[i+6];
     }
-    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
+    //board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
     board.turn ^= 1;
 
-    return board;
+    //return std::move(board);
 }
 
 

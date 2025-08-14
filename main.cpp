@@ -26,7 +26,8 @@ long driver(Board &board, int depth) {
     generate_moves(board, move_list);
 
     for (int move : move_list) {
-        Board new_board = make_move(board, move);
+        Board new_board = board;
+        make_move(new_board, move);
         if (is_king_exposed(new_board)) {
             continue;
         }
@@ -77,12 +78,13 @@ int main() {
 
     std::vector<long long> durations;
 
-    int iterations = 10;
+    int iterations = 1;
 
     for (int i=0; i<iterations; i++) {
         long long start = current_time_us();
-        long nodes = driver(bd, 6);
+        long nodes = driver(bd, 3);
         durations.push_back(current_time_us() - start);
+        printf("nodes: %ld\n", nodes);
     }
 
     long long tot_time = 0;
@@ -104,14 +106,17 @@ int main() {
         ssd += (d - mean) * (d - mean);
     }
     
-    long long var = ssd / (iterations - 1);
+    if (iterations > 1) {
+        long long var = ssd / (iterations - 1);
 
-    printf("Variance: %lld us\n", var);
-    printf("Variance: %lld ms\n", var / 1000000);
+        printf("Variance: %lld us\n", var);
+        printf("Variance: %lld ms\n", var / 1000000);
 
-    double stdev = sqrt((double) var);
-    printf("Std Dev: %f us\n", stdev);
-    printf("Std Dev: %f ms\n", stdev / 1000);
+        double stdev = sqrt((double) var);
+        printf("Std Dev: %f us\n", stdev);
+        printf("Std Dev: %f ms\n", stdev / 1000);
+    }
+    
 
 
 
