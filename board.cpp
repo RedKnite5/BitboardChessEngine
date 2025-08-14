@@ -632,7 +632,7 @@ Moves
 0100 0000 0000 0000 0000 0000 Enpassant flag
 1000 0000 0000 0000 0000 0000 Castle flag
 */
-constexpr int encode_move(int source,
+constexpr inline int encode_move(int source,
                 int target,
                 int piece,
                 int promotion,
@@ -1117,7 +1117,6 @@ inline bool is_square_attacked(Board &board, int square, bool side) {
 }
 
 
-
 void generate_pawn_moves_white(Board &board, std::vector<int> &move_list) {
     U64 p_bb = board.bitboards[P];
     int source_sq, target_sq, cur_move;
@@ -1481,10 +1480,11 @@ void generate_king_moves_black(Board &board, std::vector<int> &move_list) {
 
 
 inline bool is_king_exposed(Board &bd) {
-    if (is_square_attacked(bd, get_lsb_index(bd.bitboards[piece_select(k, !bd.turn)]), bd.turn)) {
-        return true;
-    }
-    return false;
+    return is_square_attacked(
+        bd,
+        get_lsb_index(bd.bitboards[piece_select(k, !bd.turn)]),
+        bd.turn
+    );
 }
 
 void generate_moves(Board &board, std::vector<int> &move_list) {
@@ -1513,7 +1513,7 @@ void generate_moves(Board &board, std::vector<int> &move_list) {
 }
 
 
-void make_move(Board &board, int move) {
+bool make_move(Board &board, int move) {
     int source_sq = get_move_source(move);
     int target_sq = get_move_target(move);
     int piece = get_move_piece(move);
@@ -1567,19 +1567,33 @@ void make_move(Board &board, int move) {
         board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
     }
 
+    bool king_danger_illegal = 0;
+
     if (castle) {
         switch (target_sq) {
         case C1:
             board.bitboards[R] ^= 1ULL | (1ULL << D1);
+
+            king_danger_illegal = is_square_attacked(board, D1, BLACK)
+                                || is_square_attacked(board, E1, BLACK);
             break;
         case G1:
             board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+
+            king_danger_illegal = is_square_attacked(board, F1, BLACK)
+                                || is_square_attacked(board, E1, BLACK);
             break;
         case C8:
             board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+
+            king_danger_illegal = is_square_attacked(board, D8, WHITE)
+                                || is_square_attacked(board, E8, WHITE);
             break;
         case G8:
             board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+
+            king_danger_illegal = is_square_attacked(board, F8, WHITE)
+                                || is_square_attacked(board, E8, WHITE);
             break;
         
         default:
@@ -1588,18 +1602,29 @@ void make_move(Board &board, int move) {
         }
     }
 
-    board.coloredPieces[BLACK] = board.bitboards[0];
-    board.coloredPieces[WHITE] = board.bitboards[6];
-    for (int i=1; i<6; i++) {
-        board.coloredPieces[BLACK] |= board.bitboards[i];
-        board.coloredPieces[WHITE] |= board.bitboards[i+6];
-        board.allPieces |= board.bitboards[i];
-        board.allPieces |= board.bitboards[i+6];
+    if (king_danger_illegal) {
+        return false;
     }
-    //board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
+
+    board.coloredPieces[BLACK] = board.bitboards[p]
+                               | board.bitboards[r]
+                               | board.bitboards[n]
+                               | board.bitboards[b]
+                               | board.bitboards[q]
+                               | board.bitboards[k];
+
+    board.coloredPieces[WHITE] = board.bitboards[P]
+                               | board.bitboards[R]
+                               | board.bitboards[N]
+                               | board.bitboards[B]
+                               | board.bitboards[Q]
+                               | board.bitboards[K];
+    
+    
+    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
     board.turn ^= 1;
 
-    //return std::move(board);
+    return !is_king_exposed(board);;
 }
 
 
