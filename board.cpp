@@ -5,41 +5,14 @@
 #include <type_traits>
 #include <vector>
 #include <array>
+#include <cassert>
 
 using U64 = uint64_t;
 
-
-// FEN dedug positions
-const char *empty_board = "8/8/8/8/8/8/8/8 w - - 0 1";
-const char *start_position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-const char *tricky_position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
-const char *killer_position = "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1";
-const char *cmk_position = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 ";
+#include "board.h"
 
 
-constexpr bool BLACK = false;
-constexpr bool WHITE = true;
-enum Square {
-    A1 = 0, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8, No_Square
-};
 
-const char *square_coords[] = {
-    "A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1",
-    "A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2",
-    "A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3",
-    "A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4",
-    "A5", "B5", "C5", "D5", "E5", "F5", "G5", "H5",
-    "A6", "B6", "C6", "D6", "E6", "F6", "G6", "H6",
-    "A7", "B7", "C7", "D7", "E7", "F7", "G7", "H7",
-    "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "NONE"
-};
 
 
 /*
@@ -360,7 +333,7 @@ struct AttackTables {
     std::array<std::array<U64, 4096>, 64> rookAttackMasks;
 };
 
-constexpr U64 generateBishopRelevantOccupancyMask(int square) {
+constexpr U64 generateBishopRelevantOccupancyMask(unsigned char square) {
     U64 mask = 0;
 
     int tr = square / 8;
@@ -387,7 +360,7 @@ constexpr U64 generateBishopRelevantOccupancyMask(int square) {
     return mask;
 }
 
-constexpr U64 generateBishopAttackMask(int square, U64 occupied) {
+constexpr U64 generateBishopAttackMask(unsigned char square, U64 occupied) {
     U64 mask = 0;
 
     int tr = square / 8;
@@ -427,7 +400,7 @@ constexpr U64 generateBishopAttackMask(int square, U64 occupied) {
     return mask;
 }
 
-constexpr U64 generateRookRelevantOccupancyMask(int square) {
+constexpr U64 generateRookRelevantOccupancyMask(unsigned char square) {
     U64 mask = 0;
 
     int tr = square / 8;
@@ -446,7 +419,7 @@ constexpr U64 generateRookRelevantOccupancyMask(int square) {
     return mask;
 }
 
-constexpr U64 generateRookAttackMask(int square, U64 occupied) {
+constexpr U64 generateRookAttackMask(unsigned char square, U64 occupied) {
     U64 mask = 0;
 
     int tr = square / 8;
@@ -548,7 +521,7 @@ const auto pawnAttackMasks = generatePawnAttackMasks();
 const auto pawnPushMasks = generatePawnPushMasks();
 const std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
 const std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
-/*
+
 void init_all() {
     attackTables = generateSliderAttackMasks();
     bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
@@ -572,16 +545,6 @@ static U64 magic_number_candidate() {
     return n1 & n2 & n3;
 }
 */
-
-enum Pieces {
-    p, r, n, b, q, k,  // Black pieces
-    P, R, N, B, Q, K,  // White pieces
-    Last
-};
-constexpr char ascii_pieces[] = "prnbqkPRNBQK";
-const char *unicode_pieces[12] = {"♙", "♖", "♘", "♗", "♕", "♔",
-                                  "♟", "♜", "♞", "♝", "♛", "♚"};
-
 
 
  //  Castle_wk | Castle_wq | Castle_bk | Castle_bq;
@@ -717,218 +680,206 @@ void print_move_list(std::vector<int> &move_list) {
     }
 }
 
-class Board {
-  public:
-    std::array<U64, 12> bitboards;
-    std::array<U64, 2> coloredPieces;
-    U64 allPieces = 0;
-    Square enPassantSquare = No_Square;
-    unsigned short move;
-    unsigned short halfMoveClock;
-    unsigned char castleFlags;
-    bool turn; // true for white, false for black
 
-    // try bit fields some time?
 
-    Board() {
-        move = 0;
-        turn = WHITE;
-        castleFlags = Castle_wk | Castle_wq | Castle_bk | Castle_bq;
-        halfMoveClock = 0;  // 50 move rule
-        coloredPieces = {{0xFFFFULL << 48, 0xFFFFULL}};
-        U64 whitePawns = 0xFF << 8;
-        U64 whiteRooks = 1 | (1 << 7);
-        U64 whiteKnights = (1 << 1) | (1 << 6);
-        U64 whiteBishops = (1 << 2) | (1 << 5);
-        U64 whiteQueens = 1 << 3;
-        U64 whiteKing = 1 << 4;
-        U64 blackPawns = 0xFFULL << 48;
-        U64 blackRooks = (1ULL << 56) | (1ULL << 63);
-        U64 blackKnights = (1ULL << 57) | (1ULL << 62);
-        U64 blackBishops = (1ULL << 58) | (1ULL << 61);
-        U64 blackQueens = 1ULL << 59;
-        U64 blackKing = 1ULL << 60;
+Board::Board() {
+    move = 0;
+    turn = WHITE;
+    castleFlags = Castle_wk | Castle_wq | Castle_bk | Castle_bq;
+    halfMoveClock = 0;  // 50 move rule
+    coloredPieces = {{0xFFFFULL << 48, 0xFFFFULL}};
+    U64 whitePawns = 0xFF << 8;
+    U64 whiteRooks = 1 | (1 << 7);
+    U64 whiteKnights = (1 << 1) | (1 << 6);
+    U64 whiteBishops = (1 << 2) | (1 << 5);
+    U64 whiteQueens = 1 << 3;
+    U64 whiteKing = 1 << 4;
+    U64 blackPawns = 0xFFULL << 48;
+    U64 blackRooks = (1ULL << 56) | (1ULL << 63);
+    U64 blackKnights = (1ULL << 57) | (1ULL << 62);
+    U64 blackBishops = (1ULL << 58) | (1ULL << 61);
+    U64 blackQueens = 1ULL << 59;
+    U64 blackKing = 1ULL << 60;
 
-        bitboards = {
-            blackPawns, blackRooks, blackKnights, blackBishops, blackQueens, blackKing,
-            whitePawns, whiteRooks, whiteKnights, whiteBishops, whiteQueens, whiteKing
-        };
+    bitboards = {
+        blackPawns, blackRooks, blackKnights, blackBishops, blackQueens, blackKing,
+        whitePawns, whiteRooks, whiteKnights, whiteBishops, whiteQueens, whiteKing
+    };
 
-        coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
-        coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
-        allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
-    }
+    coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
+    coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
+    allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
+}
 
-    // Constructor to initialize from a FEN string
-    Board(const char *str) {
-        bitboards = {0};
-        int i = 0;
-        int square = 56;
-        bool piecePlacement = true;
-        coloredPieces = {0};
-        allPieces = 0;
-        while (piecePlacement) {
-            char c = str[i];
-            switch (c) {
-                case 'r':
-                    bitboards[r] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'n':
-                    bitboards[n] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'b':
-                    bitboards[b] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'q':
-                    bitboards[q] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'k':
-                    bitboards[k] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'p':
-                    bitboards[p] |= 1ULL << square;
-                    coloredPieces[BLACK] |= 1ULL << square;
-                    break;
-                case 'R':
-                    bitboards[R] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case 'N':
-                    bitboards[N] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case 'B':
-                    bitboards[B] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case 'Q':
-                    bitboards[Q] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case 'K':
-                    bitboards[K] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case 'P':
-                    bitboards[P] |= 1ULL << square;
-                    coloredPieces[WHITE] |= 1ULL << square;
-                    break;
-                case '/':
-                    square -= 17;
-                    break;
-                case ' ':
-                    //break out of the loop when we reach the end of the piece placement
-                    piecePlacement = false;
-                    break;
-                default:
-                    if (c >= '1' && c <= '8') {
-                        square += (c - '0') - 1; // Move square back by the number of empty squares
-                    } else {
-                        std::cerr << "Invalid character in FEN string piece placement: " << c << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
-            }
-            i++;
-            square++;
-        }
-
-        if (str[i] == 'w') {
-            turn = 1; // White to move
-        } else if (str[i] == 'b') {
-            turn = 0; // Black to move
-        } else {
-            std::cerr << "Invalid turn in FEN string turn: " << str[i] << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        i++;
-        if (str[i] != ' ') {
-            std::cerr << "Invalid character after turn in FEN string: " << str[i] << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        i++;
-
-        castleFlags = Castle_none;
-        bool castling = true;
-        while (castling) {
-            char c = str[i];
-            switch (c) {
-                case 'K':
-                    castleFlags |= Castle_wk;
-                    break;
-                case 'Q':
-                    castleFlags |= Castle_wq;
-                    break;
-                case 'k':
-                    castleFlags |= Castle_bk;
-                    break;
-                case 'q':
-                    castleFlags |= Castle_bq;
-                    break;
-                case '-':
-                    i++;
-                    castling = false;
-                    break;
-                case ' ':
-                    castling = false;
-                    break;
-                default:
-                    std::cerr << "Invalid character in castling rights: " << c << std::endl;
+// Constructor to initialize from a FEN string
+Board::Board(const char *str) {
+    bitboards = {0};
+    int i = 0;
+    int square = 56;
+    bool piecePlacement = true;
+    coloredPieces = {0};
+    allPieces = 0;
+    while (piecePlacement) {
+        char c = str[i];
+        switch (c) {
+            case 'r':
+                bitboards[r] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'n':
+                bitboards[n] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'b':
+                bitboards[b] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'q':
+                bitboards[q] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'k':
+                bitboards[k] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'p':
+                bitboards[p] |= 1ULL << square;
+                coloredPieces[BLACK] |= 1ULL << square;
+                break;
+            case 'R':
+                bitboards[R] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case 'N':
+                bitboards[N] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case 'B':
+                bitboards[B] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case 'Q':
+                bitboards[Q] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case 'K':
+                bitboards[K] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case 'P':
+                bitboards[P] |= 1ULL << square;
+                coloredPieces[WHITE] |= 1ULL << square;
+                break;
+            case '/':
+                square -= 17;
+                break;
+            case ' ':
+                //break out of the loop when we reach the end of the piece placement
+                piecePlacement = false;
+                break;
+            default:
+                if (c >= '1' && c <= '8') {
+                    square += (c - '0') - 1; // Move square back by the number of empty squares
+                } else {
+                    std::cerr << "Invalid character in FEN string piece placement: " << c << std::endl;
                     exit(EXIT_FAILURE);
-            }
-            i++;
-        }
-
-        if (str[i] == '-') {
-            enPassantSquare = No_Square; // No en passant square
-            i++;
-        } else if (str[i] >= 'a' && str[i] <= 'h' && str[i + 1] >= '1' && str[i + 1] <= '8') {
-            enPassantSquare = static_cast<Square>((str[i + 1] - '1') * 8 + (str[i] - 'a'));
-            if (str[i+1] == '\0') {
-                std::cerr << "Invalid en passant square in FEN string: " << str[i] << str[i + 1] << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            i += 2; // Move past the en passant square
-        } else {
-            std::cerr << "Invalid en passant square in FEN string at:" << i << " str[i] ='" << str[i] << "'str[i+1] ='" << str[i + 1] << '\'' << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        if (str[i] != ' ') {
-            std::cerr << "Invalid character after en passant square in FEN string: " << str[i] << std::endl;
-            exit(EXIT_FAILURE);
+                }
         }
         i++;
-
-        // Half-move clock
-        halfMoveClock = 0;
-        while (str[i] >= '0' && str[i] <= '9') {
-            halfMoveClock = halfMoveClock * 10 + (str[i] - '0');
-            i++;
-        }
-        
-        if (str[i] != ' ') {
-            std::cerr << "Invalid character after half-move clock in FEN string:" << std::endl;
-            std::cerr << "str[i] = '" << str[i] << "'" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        i++;
-
-        // Full-move number
-        move = 0;
-        while (str[i] >= '0' && str[i] <= '9') {
-            move = move * 10 + (str[i] - '0');
-            i++;
-        }
-        // Update allPieces
-        allPieces = coloredPieces[WHITE] | coloredPieces[BLACK];
+        square++;
     }
-};
+
+    if (str[i] == 'w') {
+        turn = 1; // White to move
+    } else if (str[i] == 'b') {
+        turn = 0; // Black to move
+    } else {
+        std::cerr << "Invalid turn in FEN string turn: " << str[i] << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    i++;
+    if (str[i] != ' ') {
+        std::cerr << "Invalid character after turn in FEN string: " << str[i] << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    i++;
+
+    castleFlags = Castle_none;
+    bool castling = true;
+    while (castling) {
+        char c = str[i];
+        switch (c) {
+            case 'K':
+                castleFlags |= Castle_wk;
+                break;
+            case 'Q':
+                castleFlags |= Castle_wq;
+                break;
+            case 'k':
+                castleFlags |= Castle_bk;
+                break;
+            case 'q':
+                castleFlags |= Castle_bq;
+                break;
+            case '-':
+                i++;
+                castling = false;
+                break;
+            case ' ':
+                castling = false;
+                break;
+            default:
+                std::cerr << "Invalid character in castling rights: " << c << std::endl;
+                exit(EXIT_FAILURE);
+        }
+        i++;
+    }
+
+    if (str[i] == '-') {
+        enPassantSquare = No_Square; // No en passant square
+        i++;
+    } else if (str[i] >= 'a' && str[i] <= 'h' && str[i + 1] >= '1' && str[i + 1] <= '8') {
+        enPassantSquare = static_cast<Square>((str[i + 1] - '1') * 8 + (str[i] - 'a'));
+        if (str[i+1] == '\0') {
+            std::cerr << "Invalid en passant square in FEN string: " << str[i] << str[i + 1] << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        i += 2; // Move past the en passant square
+    } else {
+        std::cerr << "Invalid en passant square in FEN string at:" << i << " str[i] ='" << str[i] << "'str[i+1] ='" << str[i + 1] << '\'' << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (str[i] != ' ') {
+        std::cerr << "Invalid character after en passant square in FEN string: " << str[i] << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    i++;
+
+    // Half-move clock
+    halfMoveClock = 0;
+    while (str[i] >= '0' && str[i] <= '9') {
+        halfMoveClock = halfMoveClock * 10 + (str[i] - '0');
+        i++;
+    }
+    
+    if (str[i] != ' ') {
+        std::cerr << "Invalid character after half-move clock in FEN string:" << std::endl;
+        std::cerr << "str[i] = '" << str[i] << "'" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    i++;
+
+    // Full-move number
+    move = 0;
+    while (str[i] >= '0' && str[i] <= '9') {
+        move = move * 10 + (str[i] - '0');
+        i++;
+    }
+    // Update allPieces
+    allPieces = coloredPieces[WHITE] | coloredPieces[BLACK];
+}
 
 void printBitBoard_stream(U64 bitBoard, std::ostream& out) {
     for (int row = 7; row >= 0; --row) {
@@ -1068,25 +1019,25 @@ void init_magic_numbers() {
 */
 
 
-constexpr inline U64 get_bishop_attacks(int square, U64 occupancy) {
+constexpr inline U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
     occupancy &= bishopPsudoAttackMasks[square];
     occupancy *= bishopMagicNumbers[square];
     occupancy >>= 64 - 9;
     return bishopAttackMasks[square][occupancy];
 }
 
-constexpr inline U64 get_rook_attacks(int square, U64 occupancy) {
+constexpr inline U64 get_rook_attacks(unsigned char square, U64 occupancy) {
     occupancy &= rookPsudoAttackMasks[square];
     occupancy *= rookMagicNumbers[square];
     occupancy >>= 64 - 12;
     return rookAttackMasks[square][occupancy];
 }
 
-constexpr inline U64 get_queen_attacks(int square, U64 occupancy) {
+constexpr inline U64 get_queen_attacks(unsigned char square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-constexpr inline U64 get_quiet_pawn_moves(int square, U64 occupancy, int side) {
+constexpr inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, int side) {
     int shift = side * 16 - 8;
 
     // 0 if next pawn square, (square + 8), is blocked
@@ -1096,7 +1047,7 @@ constexpr inline U64 get_quiet_pawn_moves(int square, U64 occupancy, int side) {
 }
 
 // is square attacked by side
-inline bool is_square_attacked(Board &board, int square, bool side) {
+inline bool is_square_attacked(Board &board, unsigned char square, bool side) {
     // if a black pawn was on square then the two spaces it attacks are where
     // that square could be attacked from by white pawns
     U64 attacked = pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)];

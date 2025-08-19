@@ -12,6 +12,14 @@ QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000   # 100 million
 QMAKE_CXXFLAGS += -g
 
 
+QMAKE_CXXFLAGS_RELEASE += -flto -fuse-linker-plugin
+QMAKE_CFLAGS_RELEASE   += -flto -fuse-linker-plugin
+QMAKE_LFLAGS_RELEASE   += -flto -fuse-linker-plugin
+
+QMAKE_CXXFLAGS_RELEASE += -ffat-lto-objects
+QMAKE_CFLAGS_RELEASE   += -ffat-lto-objects
+
+
 # Add Google Benchmark include directory
 INCLUDEPATH += /home/you/dev/benchmark/include
 
