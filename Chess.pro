@@ -9,12 +9,12 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000   # 100 million
-QMAKE_CXXFLAGS += -g
+#QMAKE_CXXFLAGS += -g
 
 
 QMAKE_CXXFLAGS_RELEASE += -flto -fuse-linker-plugin
 QMAKE_CFLAGS_RELEASE   += -flto -fuse-linker-plugin
-QMAKE_LFLAGS_RELEASE   += -flto -fuse-linker-plugin
+QMAKE_LFLAGS_RELEASE   += -O2 -flto -fuse-linker-plugin
 
 QMAKE_CXXFLAGS_RELEASE += -ffat-lto-objects
 QMAKE_CFLAGS_RELEASE   += -ffat-lto-objects
@@ -40,7 +40,8 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
-    draggable.h
+    draggable.h \
+    board.h
 
 FORMS += \
     mainwindow.ui

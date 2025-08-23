@@ -6,13 +6,11 @@
 #include <vector>
 #include <array>
 #include <cassert>
+#include <algorithm>
 
 using U64 = uint64_t;
 
 #include "board.h"
-
-
-
 
 
 /*
@@ -510,31 +508,6 @@ constexpr auto pawnAttackMasks = generatePawnAttackMasks();
 constexpr auto pawnPushMasks = generatePawnPushMasks();
 constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
 constexpr std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
-// */
-/*
-const AttackTables attackTables = generateSliderAttackMasks();
-const auto &bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
-const auto &rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      // [square]
-const auto &bishopAttackMasks = attackTables.bishopAttackMasks;   // [square][occupancy variation]
-const auto &rookAttackMasks = attackTables.rookAttackMasks;       // [square][occupancy variation]
-const auto pawnAttackMasks = generatePawnAttackMasks();
-const auto pawnPushMasks = generatePawnPushMasks();
-const std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
-const std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
-
-void init_all() {
-    attackTables = generateSliderAttackMasks();
-    bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
-    rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      // [square]
-    bishopAttackMasks = attackTables.bishopAttackMasks;   // [square][occupancy variation]
-    rookAttackMasks = attackTables.rookAttackMasks;       // [square][occupancy variation]
-    pawnAttackMasks = generatePawnAttackMasks();
-    pawnPushMasks = generatePawnPushMasks();
-    std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
-    std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
-}
-*/
-
 
 
 /*
@@ -903,7 +876,7 @@ void printBitBoard(U64 bitBoard) {
 }
 
 
-void printBoard_stream(Board &board, std::ostream& out) {
+void printBoard_stream(const Board &board, std::ostream& out) {
     for (int row = 7; row >= 0; --row) {
         out << row + 1 << "  ";
         for (int col = 0; col < 8; ++col) {
@@ -937,7 +910,7 @@ void printBoard_stream(Board &board, std::ostream& out) {
     out << (board.turn ? "White to move" : "Black to move") << std::endl;
 }
 
-void printBoard(Board &board) {
+void printBoard(const Board &board) {
     printBoard_stream(board, std::cout);
 }
 
@@ -1019,25 +992,25 @@ void init_magic_numbers() {
 */
 
 
-constexpr inline U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
+inline U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
     occupancy &= bishopPsudoAttackMasks[square];
     occupancy *= bishopMagicNumbers[square];
     occupancy >>= 64 - 9;
     return bishopAttackMasks[square][occupancy];
 }
 
-constexpr inline U64 get_rook_attacks(unsigned char square, U64 occupancy) {
+inline U64 get_rook_attacks(unsigned char square, U64 occupancy) {
     occupancy &= rookPsudoAttackMasks[square];
     occupancy *= rookMagicNumbers[square];
     occupancy >>= 64 - 12;
     return rookAttackMasks[square][occupancy];
 }
 
-constexpr inline U64 get_queen_attacks(unsigned char square, U64 occupancy) {
+inline U64 get_queen_attacks(unsigned char square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-constexpr inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, int side) {
+inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, int side) {
     int shift = side * 16 - 8;
 
     // 0 if next pawn square, (square + 8), is blocked
@@ -1047,7 +1020,7 @@ constexpr inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, i
 }
 
 // is square attacked by side
-inline bool is_square_attacked(Board &board, unsigned char square, bool side) {
+inline bool is_square_attacked(const Board &board, unsigned char square, bool side) {
     // if a black pawn was on square then the two spaces it attacks are where
     // that square could be attacked from by white pawns
     U64 attacked = pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)];
@@ -1068,7 +1041,7 @@ inline bool is_square_attacked(Board &board, unsigned char square, bool side) {
 }
 
 
-void generate_pawn_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 p_bb = board.bitboards[P];
     int source_sq, target_sq, cur_move;
     while (p_bb) {
@@ -1124,7 +1097,7 @@ void generate_pawn_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_pawn_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_pawn_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 p_bb = board.bitboards[p];
     int source_sq, target_sq, cur_move;
     while (p_bb) {
@@ -1180,7 +1153,7 @@ void generate_pawn_moves_black(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_knight_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_knight_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 kn_bb = board.bitboards[N];
     while (kn_bb) {
         int source_sq = get_lsb_index(kn_bb);
@@ -1200,7 +1173,7 @@ void generate_knight_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_knight_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_knight_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 kn_bb = board.bitboards[n];
     while (kn_bb) {
         int source_sq = get_lsb_index(kn_bb);
@@ -1220,7 +1193,7 @@ void generate_knight_moves_black(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_bishop_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_bishop_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 b_bb = board.bitboards[B];
     while (b_bb) {
         int source_sq = get_lsb_index(b_bb);
@@ -1241,7 +1214,7 @@ void generate_bishop_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_bishop_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_bishop_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 b_bb = board.bitboards[b];
     while (b_bb) {
         int source_sq = get_lsb_index(b_bb);
@@ -1262,7 +1235,7 @@ void generate_bishop_moves_black(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_rook_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_rook_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 r_bb = board.bitboards[R];
     while (r_bb) {
         int source_sq = get_lsb_index(r_bb);
@@ -1283,7 +1256,7 @@ void generate_rook_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_rook_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_rook_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 r_bb = board.bitboards[r];
     while (r_bb) {
         int source_sq = get_lsb_index(r_bb);
@@ -1304,7 +1277,7 @@ void generate_rook_moves_black(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_queen_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_queen_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 q_bb = board.bitboards[Q];
     while (q_bb) {
         int source_sq = get_lsb_index(q_bb);
@@ -1326,7 +1299,7 @@ void generate_queen_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_queen_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_queen_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 q_bb = board.bitboards[q];
     while (q_bb) {
         int source_sq = get_lsb_index(q_bb);
@@ -1348,7 +1321,7 @@ void generate_queen_moves_black(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_king_moves_white(Board &board, std::vector<int> &move_list) {
+void generate_king_moves_white(const Board &board, std::vector<int> &move_list) {
     U64 k_bb = board.bitboards[K];
     int source_sq = get_lsb_index_safe(k_bb);  // undefined behavior if no king on board
 
@@ -1389,7 +1362,7 @@ void generate_king_moves_white(Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_king_moves_black(Board &board, std::vector<int> &move_list) {
+void generate_king_moves_black(const Board &board, std::vector<int> &move_list) {
     U64 k_bb = board.bitboards[k];
     int source_sq = get_lsb_index_safe(k_bb);  // undefined behavior if no king on board
 
@@ -1430,15 +1403,57 @@ void generate_king_moves_black(Board &board, std::vector<int> &move_list) {
 }
 
 
-inline bool is_king_exposed(Board &bd) {
+inline bool is_king_exposed(const Board &bd, bool side) {
     return is_square_attacked(
         bd,
-        get_lsb_index(bd.bitboards[piece_select(k, !bd.turn)]),
-        bd.turn
+        get_lsb_index(bd.bitboards[piece_select(k, side)]),
+        !side
     );
 }
 
-void generate_moves(Board &board, std::vector<int> &move_list) {
+
+/*
+void partition(std::vector<int> &move_list) {
+    const int size = move_list.size();
+
+    if (size < 2) {
+        return;
+    }
+
+    int cap_i = 0;
+    int noncap_i = 0;
+
+    while (true) {
+        while (move_list[cap_i] & CAPTURE_FLAG) {
+            cap_i++;
+            if (cap_i == size) {
+                return;
+            }
+        }
+        if (cap_i > noncap_i) {
+            noncap_i = cap_i;
+        }
+        
+        while (!(move_list[noncap_i] & CAPTURE_FLAG)) {
+            noncap_i++;
+            if (noncap_i == size) {
+                return;
+            }
+        }
+        std::swap(move_list[cap_i], move_list[noncap_i]);
+    }
+}
+*/
+
+void order_capture_first(std::vector<int> &move_list) {
+    std::partition(
+        move_list.begin(),
+        move_list.end(),
+        [](int move) { return move & CAPTURE_FLAG; }
+    );
+}
+
+void generate_moves(const Board &board, std::vector<int> &move_list) {
     move_list.clear();
 
     // maybe one if statement for white or black instead of lots of branchless stuff?
@@ -1461,6 +1476,9 @@ void generate_moves(Board &board, std::vector<int> &move_list) {
         generate_queen_moves_black(board, move_list);
         generate_king_moves_black(board, move_list);
     }
+
+    // 2-4 times faster with this!!!
+    order_capture_first(move_list);
 }
 
 
@@ -1575,7 +1593,7 @@ bool make_move(Board &board, int move) {
     board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
     board.turn ^= 1;
 
-    return !is_king_exposed(board);;
+    return !is_king_exposed(board, side);
 }
 
 
@@ -1591,12 +1609,135 @@ Board make_capture_move(Board &board, int move) {
 
 
 
+std::array<int, 12> MATERIAL_SCORE = {
+    -100,     // black pawn
+    -500,     // black rook
+    -320,     // black knight
+    -350,     // black bishop
+    -900,    // black queen
+    -10000,   // black king
+    100,      // white pawn
+    500,      // white rook
+    320,      // white knight
+    350,      // white bishop
+    900,     // white queen
+    10000,    // white king
+};
+
+
+constexpr std::array<char, 64> PAWN_SQUARES = {
+    0,  0,  0,  0,  0,  0,  0,  0,
+    50, 50, 50, 50, 50, 50, 50, 50,
+    10, 10, 20, 30, 30, 20, 10, 10,
+    5,  5, 10, 25, 25, 10,  5,  5,
+    0,  0,  0, 20, 20,  0,  0,  0,
+    5, -5,-10,  0,  0,-10, -5,  5,
+    5, 10, 10,-20,-20, 10, 10,  5,
+    0,  0,  0,  0,  0,  0,  0,  0
+};
+constexpr std::array<char, 64> ROOK_SQUARES = {
+    0,  0,  0,  0,  0,  0,  0,  0,
+    5, 10, 10, 10, 10, 10, 10,  5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    0,  0,  0,  5,  5,  0,  0,  0
+};
+constexpr std::array<char, 64> KNIGHT_SQUARES = {
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50
+};
+constexpr std::array<char, 64> BISHOP_SQUARES = {
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20,
+};
+constexpr std::array<char, 64> QUEEN_SQUARES = {
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+    -5,  0,  5,  5,  5,  5,  0, -5,
+    0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20
+};
+constexpr std::array<char, 64> KING_SQUARES = {
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+    20, 20,  0,  0,  0,  0, 20, 20,
+    20, 30, 10,  0,  0, 10, 30, 20
+};
+
+constexpr std::array<std::array<char, 64>, 6> PIECE_SQUARES = {
+    PAWN_SQUARES,
+    ROOK_SQUARES,
+    KNIGHT_SQUARES,
+    BISHOP_SQUARES,
+    QUEEN_SQUARES,
+    KING_SQUARES
+};
+
+inline int flip(int square) {
+    return square ^ 56;
+}
+
+
+int evaluate(const Board &board) {
+    int total = 0;
+    bool side = board.turn;
+    int sign = side * 2 - 1;
+
+    
+    for (int piece=0; piece<6; piece++) {
+        U64 bb = board.bitboards[piece];
+
+        while (bb) {
+            int square = get_lsb_index(bb);
+            bb ^= 1ULL << square;
+            total += MATERIAL_SCORE[piece];
+
+            total -= PIECE_SQUARES[piece][square];
+        }
+    }
+
+    for (int piece=6; piece<12; piece++) {
+        U64 bb = board.bitboards[piece];
+
+        while (bb) {
+            int square = get_lsb_index(bb);
+            bb ^= 1ULL << square;
+            total += MATERIAL_SCORE[piece];
+
+            square = flip(square);
+            total += PIECE_SQUARES[piece-6][square];
+        }
+    }
+
+    // for negamax posative means good, negative means bad, for both players
+    return total * sign;
+}
 
 
 
-
-
-void printAllAttackedSquares_stream(Board &board, bool side, std::ostream& out) {
+void printAllAttackedSquares_stream(const Board &board, bool side, std::ostream& out) {
     for (int row = 7; row >= 0; --row) {
         out << row + 1 << "  ";
         for (int col = 0; col < 8; ++col) {
@@ -1612,7 +1753,7 @@ void printAllAttackedSquares_stream(Board &board, bool side, std::ostream& out) 
     out << "\n   A B C D E F G H" << std::endl;
 }
 
-void printAllAttackedSquares(Board &board, bool side) {
+void printAllAttackedSquares(const Board &board, bool side) {
     printAllAttackedSquares_stream(board, side, std::cout);
 }
 

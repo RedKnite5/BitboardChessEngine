@@ -42,16 +42,9 @@ enum Pieces {
 };
 
 inline const char ascii_pieces[] = "prnbqkPRNBQK";
-inline const char *unicode_pieces[12] = {"♙", "♖", "♘", "♗", "♕", "♔",
-                                  "♟", "♜", "♞", "♝", "♛", "♚"};
-
-
-
-
-
-void print_move(int move);
-
-void print_move_list(std::vector<int> &move_list);
+inline const char *unicode_pieces[12] = {
+    "♙", "♖", "♘", "♗", "♕", "♔",
+    "♟", "♜", "♞", "♝", "♛", "♚"};
 
 class Board {
   public:
@@ -72,34 +65,31 @@ class Board {
 
 };
 
+void print_move(int move);
+
+void print_move_list(std::vector<int> &move_list);
+
 
 void printBitBoard_stream(uint64_t bitBoard, std::ostream& out);
 void printBitBoard(uint64_t bitBoard);
 
-void printBoard_stream(Board &board, std::ostream& out);
-void printBoard(Board &board);
+void printBoard_stream(const Board &board, std::ostream& out);
+void printBoard(const Board &board);
 
 
-constexpr inline uint64_t get_bishop_attacks(unsigned char square, uint64_t occupancy);
-constexpr inline uint64_t get_rook_attacks(unsigned char square, uint64_t occupancy);
-constexpr inline uint64_t get_queen_attacks(unsigned char square, uint64_t occupancy);
-constexpr inline uint64_t get_quiet_pawn_moves(unsigned char square, uint64_t occupancy, int side);
+inline uint64_t get_bishop_attacks(unsigned char square, uint64_t occupancy);
+inline uint64_t get_rook_attacks(unsigned char square, uint64_t occupancy);
+inline uint64_t get_queen_attacks(unsigned char square, uint64_t occupancy);
+inline uint64_t get_quiet_pawn_moves(unsigned char square, uint64_t occupancy, int side);
 
-inline bool is_square_attacked(Board &board, unsigned char square, bool side);
+inline bool is_square_attacked(const Board &board, unsigned char square, bool side);
 
+inline bool is_king_exposed(const Board &bd, bool side);
 
-//void generate_pawn_moves_white(Board &board, std::vector<int> &move_list);
-
-inline bool is_king_exposed(Board &bd);
-
-void generate_moves(Board &board, std::vector<int> &move_list);
+void generate_moves(const Board &board, std::vector<int> &move_list);
 
 bool make_move(Board &board, int move);
 
+int evaluate(const Board &board);
 
-void printAllAttackedSquares(Board &board, bool side);
-
-
-
-
-
+void printAllAttackedSquares(const Board &board, bool side);
