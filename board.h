@@ -36,15 +36,15 @@ inline const char *square_coords[] = {
 
 
 enum Pieces {
-    p, r, n, b, q, k,  // Black pieces
-    P, R, N, B, Q, K,  // White pieces
+    p, n, b, r, q, k,  // Black pieces
+    P, N, B, R, Q, K,  // White pieces
     Last
 };
 
-inline const char ascii_pieces[] = "prnbqkPRNBQK";
+inline const char ascii_pieces[] = "pnbrqkPNBRQK";
 inline const char *unicode_pieces[12] = {
-    "♙", "♖", "♘", "♗", "♕", "♔",
-    "♟", "♜", "♞", "♝", "♛", "♚"};
+    "♙", "♘", "♗", "♖", "♕", "♔",
+    "♟", "♞", "♝", "♜", "♛", "♚"};
 
 class Board {
   public:
@@ -84,9 +84,12 @@ inline uint64_t get_quiet_pawn_moves(unsigned char square, uint64_t occupancy, i
 
 inline bool is_square_attacked(const Board &board, unsigned char square, bool side);
 
-inline bool is_king_exposed(const Board &bd, bool side);
+bool is_king_exposed(const Board &bd, bool side);
+
+void order_capture_first(std::vector<int> &move_list);
 
 void generate_moves(const Board &board, std::vector<int> &move_list);
+void generate_capture_moves(const Board &board, std::vector<int> &move_list);
 
 bool make_move(Board &board, int move);
 

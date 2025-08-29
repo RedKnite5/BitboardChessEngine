@@ -122,20 +122,64 @@ void perft_correctness() {
 constexpr int MIN_SCORE = -50000;
 constexpr int MAX_SCORE = 50000;
 
+
+
+
 class Searcher {
     public:
 
     //std::vector<int> pv;
     int best_move = 0;
 
+    int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(const Board &board, int alpha, int beta, int depth);
     int negamax(const Board &board, int depth);
 };
 
 
+int Searcher::quiscence(const Board &board, int alpha, int beta) {
+
+    int eval_score = evaluate(board);
+
+    if (eval_score >= beta) {
+        // fail high
+        return beta;
+    }
+
+    if (eval_score > alpha) {
+        alpha = eval_score;
+    }
+
+    std::vector<int> move_list;
+    move_list.reserve(32);
+    generate_capture_moves(board, move_list);
+
+    for (int move : move_list) {
+        Board new_board = board;
+        bool king_safe = make_move(new_board, move);
+        if (!king_safe) {
+            continue;
+        }
+
+
+        int score = -quiscence(new_board, -beta, -alpha);
+
+        if (score >= beta) {
+            // fail high
+            return beta;
+        }
+
+        if (score > alpha) {
+            alpha = score;
+        }
+    }
+
+    return alpha;
+}
+
 int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     if (depth == 0) {
-        return evaluate(board);
+        return quiscence(board, alpha, beta);
     }
 
     std::vector<int> move_list;
@@ -188,6 +232,40 @@ int Searcher::negamax(const Board &board, int depth) {
 
     bool legal_moves = false;
 
+    /*
+    if (depth > 9) {
+        std::vector<std::array<int, 2>> eval_move_map;
+
+        for (int move : move_list) {
+            Board new_board = board;
+            bool king_safe = make_move(new_board, move);
+            if (!king_safe) {
+                continue;
+            }
+
+            int score = evaluate(new_board);
+            std::array<int, 2> ar = {score, move};
+            eval_move_map.push_back(ar);
+        }
+
+        std::sort(
+            eval_move_map.begin(),
+            eval_move_map.end(),
+            [](const std::array<int, 2> &ar1, const std::array<int, 2> &ar2) { return ar1[0] < ar2[0]; }
+        );
+
+        move_list.clear();
+        for (auto [score, move] : eval_move_map) {
+            move_list.push_back(move);
+        }
+    } else {
+        order_capture_first(move_list);
+    }
+    */
+    
+
+
+
     for (int move : move_list) {
         Board new_board = board;
         bool king_safe = make_move(new_board, move);
@@ -234,7 +312,7 @@ void play(const char *fen, int depth) {
 
 
         long long start = current_time_us();
-        int move = S.negamax(board, 9);
+        int move = S.negamax(board, 1);
         long long duration = current_time_us() - start;
 
         printf("\n\nTime: %lld ms\n", duration / 1000);
@@ -320,7 +398,7 @@ int main() {
 
     const char *fen = "1rb5/1p2k2r/p5n1/2p1pp2/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
 
-    play(position, 10);
+    play(position, 30);
     
 
     // depth 6 node count for tricky_position should be 8031647685

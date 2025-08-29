@@ -9,4 +9,4 @@ LIBS += -lgtest -lgtest_main -lpthread
 DESTDIR = bin
 TARGET = ChessTest
 
-QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000   # 100 million
+QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000 -g  # 100 million

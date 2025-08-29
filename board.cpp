@@ -497,7 +497,6 @@ constexpr AttackTables generateSliderAttackMasks() {
 }
 
 
-//*
 constexpr AttackTables attackTables = generateSliderAttackMasks();
 constexpr auto &bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
 constexpr auto &rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      // [square]
@@ -675,8 +674,8 @@ Board::Board() {
     U64 blackKing = 1ULL << 60;
 
     bitboards = {
-        blackPawns, blackRooks, blackKnights, blackBishops, blackQueens, blackKing,
-        whitePawns, whiteRooks, whiteKnights, whiteBishops, whiteQueens, whiteKing
+        blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing,
+        whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing
     };
 
     coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
@@ -1053,27 +1052,11 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
         int move = source_sq | (P << PIECE_SHIFT);
 
         U64 pushes = get_quiet_pawn_moves(source_sq, board.allPieces, WHITE);
-        while (pushes) {
-            target_sq = get_lsb_index(pushes);
-            cur_move = move | (target_sq << 6);
+        
 
-            if (not_promoting) {
-                //                      Double Pawn FLag
-                cur_move |= ((target_sq == source_sq + 16) << DOUBLE_SHIFT);
-                move_list.push_back(cur_move);
-            } else {
-                //                               Promotion
-                move_list.push_back(cur_move | (Q << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (B << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (N << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (R << PROMOTION_SHIFT));
-            }
 
-            pushes ^= (1ULL << target_sq);
-        }
-
+        // extract core while loop and make generate pawn attacks and pushes separate
         move |= CAPTURE_FLAG;
-
         while (attacks) {
             target_sq = get_lsb_index(attacks);
             cur_move = move | (target_sq << TARGET_SHIFT);
@@ -1092,6 +1075,27 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
 
             attacks ^= 1ULL << target_sq;
         }
+
+        move ^= CAPTURE_FLAG;
+        while (pushes) {
+            target_sq = get_lsb_index(pushes);
+            cur_move = move | (target_sq << 6);
+
+            if (not_promoting) {
+                //                      Double Pawn FLag
+                cur_move |= ((target_sq == source_sq + 16) << DOUBLE_SHIFT);
+                move_list.push_back(cur_move);
+            } else {
+                //                               Promotion
+                move_list.push_back(cur_move | (Q << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (B << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (N << PROMOTION_SHIFT));
+                move_list.push_back(cur_move | (R << PROMOTION_SHIFT));
+            }
+
+            pushes ^= (1ULL << target_sq);
+        }
+        
 
         p_bb ^= 1ULL << source_sq;
     }
@@ -1403,7 +1407,7 @@ void generate_king_moves_black(const Board &board, std::vector<int> &move_list) 
 }
 
 
-inline bool is_king_exposed(const Board &bd, bool side) {
+bool is_king_exposed(const Board &bd, bool side) {
     return is_square_attacked(
         bd,
         get_lsb_index(bd.bitboards[piece_select(k, side)]),
@@ -1411,39 +1415,6 @@ inline bool is_king_exposed(const Board &bd, bool side) {
     );
 }
 
-
-/*
-void partition(std::vector<int> &move_list) {
-    const int size = move_list.size();
-
-    if (size < 2) {
-        return;
-    }
-
-    int cap_i = 0;
-    int noncap_i = 0;
-
-    while (true) {
-        while (move_list[cap_i] & CAPTURE_FLAG) {
-            cap_i++;
-            if (cap_i == size) {
-                return;
-            }
-        }
-        if (cap_i > noncap_i) {
-            noncap_i = cap_i;
-        }
-        
-        while (!(move_list[noncap_i] & CAPTURE_FLAG)) {
-            noncap_i++;
-            if (noncap_i == size) {
-                return;
-            }
-        }
-        std::swap(move_list[cap_i], move_list[noncap_i]);
-    }
-}
-*/
 
 void order_capture_first(std::vector<int> &move_list) {
     std::partition(
@@ -1453,11 +1424,27 @@ void order_capture_first(std::vector<int> &move_list) {
     );
 }
 
+
+int mvv_lva(const Board &board, int move) {
+    const auto bits = board.bitboards;
+    int attacker = get_move_piece(move);
+    int target_sq = get_move_target(move);
+
+    const unsigned int start = attacker < 6 ? 6 : 0;
+
+    auto it = std::find_if(
+        bits.begin()+start,
+        bits.begin()+start+6,
+        [target_sq](auto b){ return (bool)(b & (1ULL << target_sq)); }
+    );
+    int victim = std::distance(bits.begin()+start, it);
+
+    return victim * 100 + 100 + 5 - attacker + 6 - start;
+}
+
+
 void generate_moves(const Board &board, std::vector<int> &move_list) {
     move_list.clear();
-
-    // maybe one if statement for white or black instead of lots of branchless stuff?
-    // profile both later
 
     if (board.turn) {
         // white
@@ -1479,6 +1466,18 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
 
     // 2-4 times faster with this!!!
     order_capture_first(move_list);
+}
+
+void generate_capture_moves(const Board &board, std::vector<int> &move_list) {
+    generate_moves(board, move_list);
+
+    // remove all non capture moves
+    auto iterator = std::find_if(
+        move_list.begin(),
+        move_list.end(),
+        [](int move) { return !(move & CAPTURE_FLAG); }
+    );
+    move_list.erase(iterator, move_list.end());
 }
 
 
@@ -1527,7 +1526,6 @@ bool make_move(Board &board, int move) {
 
     if (double_shift) {
         board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
-        //board.enPassantSquare = static_cast<Square>(source_sq + (side*16 - 8));
     } else {
         board.enPassantSquare = No_Square;
     }
@@ -1597,29 +1595,17 @@ bool make_move(Board &board, int move) {
 }
 
 
-/*
-Board make_capture_move(Board &board, int move) {
-    if (get_capture_flag(move)) {
-        return make_move(board, move);
-    }
-
-    
-}
-*/
-
-
-
 std::array<int, 12> MATERIAL_SCORE = {
     -100,     // black pawn
-    -500,     // black rook
     -320,     // black knight
     -350,     // black bishop
+    -500,     // black rook
     -900,    // black queen
     -10000,   // black king
     100,      // white pawn
-    500,      // white rook
     320,      // white knight
     350,      // white bishop
+    500,      // white rook
     900,     // white queen
     10000,    // white king
 };
@@ -1688,9 +1674,9 @@ constexpr std::array<char, 64> KING_SQUARES = {
 
 constexpr std::array<std::array<char, 64>, 6> PIECE_SQUARES = {
     PAWN_SQUARES,
-    ROOK_SQUARES,
     KNIGHT_SQUARES,
     BISHOP_SQUARES,
+    ROOK_SQUARES,
     QUEEN_SQUARES,
     KING_SQUARES
 };
