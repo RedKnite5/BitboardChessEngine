@@ -7,6 +7,9 @@
 #include <time.h>
 #include <math.h>
 
+#include <algorithm>
+#include <vector>
+
 #include "board.h"
 
 
@@ -95,7 +98,7 @@ void time_driver() {
 
 
 void perft_correctness() {
-    const char *position = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
+    //const char *position = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
 
     // depth 6 node count for tricky_position should be 8031647685
     //                                     currently is 8031712933
@@ -130,6 +133,7 @@ class Searcher {
 
     //std::vector<int> pv;
     int best_move = 0;
+    long long nodes = 0;
 
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(const Board &board, int alpha, int beta, int depth);
@@ -138,6 +142,8 @@ class Searcher {
 
 
 int Searcher::quiscence(const Board &board, int alpha, int beta) {
+    // debug info
+    nodes++;
 
     int eval_score = evaluate(board);
 
@@ -153,6 +159,7 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     std::vector<int> move_list;
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
+    sort_moves(board, move_list);
 
     for (int move : move_list) {
         Board new_board = board;
@@ -160,7 +167,6 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
         if (!king_safe) {
             continue;
         }
-
 
         int score = -quiscence(new_board, -beta, -alpha);
 
@@ -181,10 +187,13 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     if (depth == 0) {
         return quiscence(board, alpha, beta);
     }
+    // debug info
+    nodes++;
 
     std::vector<int> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
+    sort_moves(board, move_list);
 
     bool legal_moves = false;
 
@@ -227,6 +236,8 @@ int Searcher::negamax(const Board &board, int depth) {
     move_list.reserve(32);
     generate_moves(board, move_list);
 
+    nodes = 0;
+
     int alpha = MIN_SCORE;
     int beta = MAX_SCORE;
 
@@ -262,9 +273,9 @@ int Searcher::negamax(const Board &board, int depth) {
         order_capture_first(move_list);
     }
     */
+
+    sort_moves(board, move_list);
     
-
-
 
     for (int move : move_list) {
         Board new_board = board;
@@ -296,12 +307,12 @@ int Searcher::negamax(const Board &board, int depth) {
 }
 
 
-void play(const char *fen, int depth) {
+void play(const char *fen, int moves, int depth) {
     Board board = Board(fen);
     Searcher S;
     printBoard(board);
     
-    for (int i = 0; i < depth; i++) {
+    for (int i = 0; i < moves; i++) {
         //int look_ahead = 7;
         int mult = -1;
         if (board.turn) {
@@ -312,16 +323,11 @@ void play(const char *fen, int depth) {
 
 
         long long start = current_time_us();
-        int move = S.negamax(board, 1);
+        int move = S.negamax(board, depth);
         long long duration = current_time_us() - start;
 
         printf("\n\nTime: %lld ms\n", duration / 1000);
         printf("Time: %lld s\n", duration / 1000000);
-
-
-
-
-
 
         if (move) {
             printf("move:\n");
@@ -330,6 +336,7 @@ void play(const char *fen, int depth) {
             printBoard(board);
             int score = -evaluate(board);
             printf("score: %d\n", score*mult);
+            printf("Nodes: %lld\n", S.nodes);
         } else {
             printf("No moves!\n");
 
@@ -343,23 +350,7 @@ void play(const char *fen, int depth) {
     }
 }
 
-/*
-Board bd(start_position);
 
-static void BM_Driver(benchmark::State& state) {
-    for (auto _ : state) {
-        // Make sure driver() isn't optimized away
-        long nodes = driver(bd, 6);
-        benchmark::DoNotOptimize(nodes);
-    }
-}
-
-BENCHMARK(BM_Driver)
-    ->Iterations(5)                       // exactly 5 runs
-    ->Unit(benchmark::kMillisecond);
-
-BENCHMARK_MAIN();
-*/
 
 int main() {
     //init_all();
@@ -372,33 +363,26 @@ int main() {
     //const char *position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1 ";
     //const char *position = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
     const char *position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-    //Board bd = Board(position);
-    //printBoard(bd);
-    //std::cout << "Attacked: " << is_square_attacked(bd, E1, white) << std::endl;
-
-    //Board board = Board();
 
     printf("Start!\n");
 
-    // Board b = Board(position);
-    // printBoard(b);
-    // printf("score: %d\n\n", evaluate(b));
-
-
-    // const char *position2 = "rnbqkbnr/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-    // b = Board(position2);
-    // printBoard(b);
-    // printf("score: %d\n\n", evaluate(b));
-
-
-    // const char *position3 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK3 w KQkq - 0 1 ";
-    // b = Board(position3);
-    // printBoard(b);
-    // printf("score: %d\n\n", evaluate(b));
-
     const char *fen = "1rb5/1p2k2r/p5n1/2p1pp2/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
 
-    play(position, 30);
+    play(tricky_position, 3, 5);
+
+
+    // const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";
+
+    // Board board = Board(many_attacks);
+    // std::vector<int> move_list;
+    // generate_moves(board, move_list);
+    // std::ranges::sort(move_list, {}, [&board](int move){ return -score_move(board, move); });
+
+
+    // for (auto move: move_list) {
+    //     print_move(move);
+    //     printf("Score: %d\n\n", score_move(board, move));
+    // }
     
 
     // depth 6 node count for tricky_position should be 8031647685
@@ -414,7 +398,6 @@ int main() {
     // int move = S.negamax(board, 3);
     // printf("move:\n");
     // print_move(move);
-
 
 
 

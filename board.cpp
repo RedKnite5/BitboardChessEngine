@@ -677,6 +677,9 @@ Board::Board() {
         blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing,
         whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing
     };
+    // bitboards[p] = blackPawns;
+    // ...
+    // bitboards[K] = whiteKing;
 
     coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
     coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
@@ -1426,6 +1429,7 @@ void order_capture_first(std::vector<int> &move_list) {
 
 
 int mvv_lva(const Board &board, int move) {
+    // enpassant?
     const auto bits = board.bitboards;
     int attacker = get_move_piece(move);
     int target_sq = get_move_target(move);
@@ -1439,7 +1443,22 @@ int mvv_lva(const Board &board, int move) {
     );
     int victim = std::distance(bits.begin()+start, it);
 
-    return victim * 100 + 100 + 5 - attacker + 6 - start;
+    const int VIC_SCORE_MULT = 100;
+    return victim * VIC_SCORE_MULT + VIC_SCORE_MULT + 5 - attacker + 6 - start;
+}
+
+int score_move(const Board &board, int move) {
+    if (get_capture_flag(move)) {
+        return mvv_lva(board, move);
+    } else {
+
+    }
+
+    return 0;
+}
+
+void sort_moves(const Board &board, std::vector<int> &move_list) {
+    std::ranges::sort(move_list, {}, [&board](int move){ return -score_move(board, move); });
 }
 
 

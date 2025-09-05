@@ -88,6 +88,10 @@ bool is_king_exposed(const Board &bd, bool side);
 
 void order_capture_first(std::vector<int> &move_list);
 
+int score_move(const Board &board, int move);
+
+void sort_moves(const Board &board, std::vector<int> &move_list);
+
 void generate_moves(const Board &board, std::vector<int> &move_list);
 void generate_capture_moves(const Board &board, std::vector<int> &move_list);
 

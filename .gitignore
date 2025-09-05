@@ -4,6 +4,9 @@
 dump.txt
 perf.*
 
+test.cpp
+test_ranges
+
 *~
 *.autosave
 *.a
