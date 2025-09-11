@@ -481,27 +481,101 @@ TEST(Perft, PerftDepth5) {
 TEST(MoveOrdering, TestMVV_LVA_Pp) {
     Board board = Board("rnbqkbnr/ppppppp1/8/7p/6P1/8/PPPPPP1P/RNBQKBNR w KQkq - 0 1 ");
     std::array<char, 8> move = {G4, H5, P, p, 1, 0, 0, 0};
-    EXPECT_EQ(mvv_lva(board, call_encode(move)), 105);
+    EXPECT_EQ(mvv_lva(board, call_encode(move)), 5 + 128 * 1 * MOVE_SORTING_SCALE);
 }
 
 TEST(MoveOrdering, TestMVV_LVA_pP) {
     Board board = Board("rnbqkbnr/ppppppp1/8/7p/6P1/8/PPPPPP1P/RNBQKBNR b KQkq - 0 1 ");
     std::array<char, 8> move = {H5, G4, p, p, 1, 0, 0, 0};
-    EXPECT_EQ(mvv_lva(board, call_encode(move)), 105);
+    EXPECT_EQ(mvv_lva(board, call_encode(move)), 5 + 128 * 1 * MOVE_SORTING_SCALE);
 }
 
 TEST(MoveOrdering, TestMVV_LVA_Pq) {
     Board board = Board("rnb1kbnr/pppppppp/8/7q/6P1/8/PPPPPP1P/RNBQKBNR w KQkq - 0 1 ");
     std::array<char, 8> move = {G4, H5, P, p, 1, 0, 0, 0};
-    EXPECT_EQ(mvv_lva(board, call_encode(move)), 505);
+    EXPECT_EQ(mvv_lva(board, call_encode(move)), 5 + 128 * 5 * MOVE_SORTING_SCALE);
 }
 
 TEST(MoveOrdering, TestMVV_LVA_Qp) {
     Board board = Board("rnbqkbnr/ppppppp1/8/7p/6Q1/8/PPPPPP1P/RNBQKBNR b KQkq - 0 1 ");
     std::array<char, 8> move = {G4, H5, Q, p, 1, 0, 0, 0};
-    EXPECT_EQ(mvv_lva(board, call_encode(move)), 101);
+    EXPECT_EQ(mvv_lva(board, call_encode(move)), 1 + 128 * MOVE_SORTING_SCALE);
 }
 
+/*
+TEST(MoveOrdering, Sorting) {
+    const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";
+
+    Board board = Board(many_attacks);
+    std::vector<int> move_list;
+    generate_moves(board, move_list);
+    sort_moves(board, move_list);
+
+    std::vector<std::array<char, 8>> expected_arrays = {
+        {E2, D1, p, q, 1, 0, 0, 0},
+        {E2, D1, p, b, 1, 0, 0, 0},
+        {E2, D1, p, n, 1, 0, 0, 0},
+        {E2, D1, p, r, 1, 0, 0, 0},
+        {F6, E5, b, p, 1, 0, 0, 0},
+        {C3, E5, q, p, 1, 0, 0, 0},
+        {C7, D6, p, p, 1, 0, 0, 0},
+        {E7, D6, p, p, 1, 0, 0, 0},
+        {C6, D6, r, p, 1, 0, 0, 0},
+        {C3, C2, q, p, 1, 0, 0, 0},
+        {E6, G5, n, p, 1, 0, 0, 0},
+        {C1, B2, b, p, 1, 0, 0, 0},
+        {F6, G5, b, p, 1, 0, 0, 0},
+        {C3, B2, q, p, 1, 0, 0, 0},
+        {C3, B3, q, p, 1, 0, 0, 0},
+        {A5, B4, p, p, 1, 0, 0, 0},
+        {H4, G2, n, p, 1, 0, 0, 0},
+        {C1, D2, b, p, 1, 0, 0, 0},
+        {C6, C4, r, p, 1, 0, 0, 0},
+        {C3, C4, q, p, 1, 0, 0, 0},
+        {C3, B4, q, p, 1, 0, 0, 0},
+        {C3, D2, q, p, 1, 0, 0, 0},
+        {B7, B5, p, p, 0, 1, 0, 0},
+        {A5, A4, p, p, 0, 0, 0, 0},
+        {F4, F3, p, p, 0, 0, 0, 0},
+        {E2, E1, p, r, 0, 0, 0, 0},
+        {C3, D3, q, p, 0, 0, 0, 0},
+        {C3, E3, q, p, 0, 0, 0, 0},
+        {C3, F3, q, p, 0, 0, 0, 0},
+        {C3, G3, q, p, 0, 0, 0, 0},
+        {C3, H3, q, p, 0, 0, 0, 0},
+        {E2, E1, p, n, 0, 0, 0, 0},
+        {E2, E1, p, b, 0, 0, 0, 0},
+        {C3, D4, q, p, 0, 0, 0, 0},
+        {E2, E1, p, q, 0, 0, 0, 0},
+        {E8, F7, k, p, 0, 0, 0, 0},
+        {E8, D8, k, p, 0, 0, 0, 0},
+        {E8, F8, k, p, 0, 0, 0, 0},
+        {H6, H8, r, p, 0, 0, 0, 0},
+        {H6, H7, r, p, 0, 0, 0, 0},
+        {H6, H5, r, p, 0, 0, 0, 0},
+        {B7, B6, p, p, 0, 0, 0, 0},
+        {C6, B6, r, p, 0, 0, 0, 0},
+        {C6, A6, r, p, 0, 0, 0, 0},
+        {C6, C5, r, p, 0, 0, 0, 0},
+        {H4, F3, n, p, 0, 0, 0, 0},
+        {F6, H8, b, p, 0, 0, 0, 0},
+        {F6, G7, b, p, 0, 0, 0, 0},
+        {H4, F5, n, p, 0, 0, 0, 0},
+        {E6, D4, n, p, 0, 0, 0, 0},
+        {E6, C5, n, p, 0, 0, 0, 0},
+        {E6, G7, n, p, 0, 0, 0, 0},
+        {E6, F8, n, p, 0, 0, 0, 0},
+        {E6, D8, n, p, 0, 0, 0, 0},
+    };
+
+    std::vector<int> expected;
+    for (auto um: expected_arrays) {
+        expected.push_back(call_encode(um));
+    }
+
+    EXPECT_EQ(move_list, expected);
+}
+*/
 
 
 int main(int argc, char **argv) {

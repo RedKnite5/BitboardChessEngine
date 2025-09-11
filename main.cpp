@@ -45,8 +45,6 @@ long driver(Board &board, int depth) {
     return nodes;
 }
 
-
-
 void time_driver() {
     //const char *position = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
     Board bd = Board(start_position);
@@ -95,8 +93,6 @@ void time_driver() {
 
 }
 
-
-
 void perft_correctness() {
     //const char *position = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
 
@@ -120,25 +116,53 @@ void perft_correctness() {
 }
 
 
-
+constexpr unsigned int MAX_PLY = 64;
 
 constexpr int MIN_SCORE = -50000;
 constexpr int MAX_SCORE = 50000;
 
+constexpr unsigned int PV_SIZE = (MAX_PLY + 1) * MAX_PLY / 2;
 
+void sort_moves(const Board &board, std::vector<int> &move_list);
 
 
 class Searcher {
     public:
 
-    //std::vector<int> pv;
-    int best_move = 0;
+    std::array<int, PV_SIZE> pv = {};
     long long nodes = 0;
+    int ply = -1;
+
+    std::array<std::array<int, MAX_PLY>, 2> killer_moves = {};
+    std::array<std::array<short, 64>, 12> history_moves = {};
+
+    int score_move(const Board &board, int move);
+    void sort_moves(const Board &board, std::vector<int> &move_list);
 
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(const Board &board, int alpha, int beta, int depth);
     int negamax(const Board &board, int depth);
 };
+
+int Searcher::score_move(const Board &board, int move) {
+    if (get_capture_flag(move)) {
+        return mvv_lva(board, move);
+    } else {
+        if (killer_moves[0][ply] == move) {
+            return 64 * MOVE_SORTING_SCALE;
+        } else if (killer_moves[1][ply] == move) {
+            return 32 * MOVE_SORTING_SCALE;
+        } else {
+            return history_moves[get_move_piece(move)][get_move_target(move)];
+        }
+    }
+
+    return 0;
+}
+
+void Searcher::sort_moves(const Board &board, std::vector<int> &move_list) {
+    std::ranges::sort(move_list, {}, [this, &board](int move){ return -score_move(board, move); });
+}
 
 
 int Searcher::quiscence(const Board &board, int alpha, int beta) {
@@ -189,13 +213,17 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     }
     // debug info
     nodes++;
+    ply++;
 
     std::vector<int> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
     sort_moves(board, move_list);
 
+    //print_move_list(move_list);
+
     bool legal_moves = false;
+    unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
 
     for (int move : move_list) {
         Board new_board = board;
@@ -210,13 +238,37 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 
         if (score >= beta) {
             // fail high
+
+            if (!get_capture_flag(move)) {
+                killer_moves[1][ply] = killer_moves[0][ply];
+                killer_moves[0][ply] = move;
+            }
+
+            ply--;
             return beta;
         }
 
         if (score > alpha) {
+
+            //if (!get_capture_flag(move)) {
+                int piece = get_move_piece(move);
+                int target = get_move_target(move);
+                history_moves[piece][target] += depth;
+            //}
+
             alpha = score;
+
+            pv[pv_index] = move;
+            std::copy_n(
+                pv.begin() + pv_index + MAX_PLY - ply,
+                MAX_PLY - ply - 1,
+                pv.begin() + pv_index + 1
+            );
+
         }
     }
+
+    ply--;
 
     if (!legal_moves) {
         if (is_king_exposed(board, board.turn)) {
@@ -232,80 +284,26 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 }
 
 int Searcher::negamax(const Board &board, int depth) {
-    std::vector<int> move_list;
-    move_list.reserve(32);
-    generate_moves(board, move_list);
-
     nodes = 0;
 
     int alpha = MIN_SCORE;
     int beta = MAX_SCORE;
 
-    bool legal_moves = false;
+    negamax_rec(board, alpha, beta, depth);
 
-    /*
-    if (depth > 9) {
-        std::vector<std::array<int, 2>> eval_move_map;
-
-        for (int move : move_list) {
-            Board new_board = board;
-            bool king_safe = make_move(new_board, move);
-            if (!king_safe) {
-                continue;
-            }
-
-            int score = evaluate(new_board);
-            std::array<int, 2> ar = {score, move};
-            eval_move_map.push_back(ar);
-        }
-
-        std::sort(
-            eval_move_map.begin(),
-            eval_move_map.end(),
-            [](const std::array<int, 2> &ar1, const std::array<int, 2> &ar2) { return ar1[0] < ar2[0]; }
-        );
-
-        move_list.clear();
-        for (auto [score, move] : eval_move_map) {
-            move_list.push_back(move);
-        }
-    } else {
-        order_capture_first(move_list);
-    }
-    */
-
-    sort_moves(board, move_list);
-    
-
-    for (int move : move_list) {
-        Board new_board = board;
-        bool king_safe = make_move(new_board, move);
-        if (!king_safe) {
-            continue;
-        }
-
-        legal_moves = true;
-
-        int score = -negamax_rec(new_board, -beta, -alpha, depth-1);
-
-        if (score >= beta) {
-            // fail high
-            break;
-        }
-
-        if (score > alpha) {
-            alpha = score;
-            best_move = move;
-        }
-    }
-
-    if (!legal_moves) {
-        return 0;
-    }
-
-    return best_move;
+    return pv[0];
 }
 
+
+void print_pv(const std::array<int, PV_SIZE> &pv) {
+    printf("Principal Variation\n");
+    for (unsigned int i=0; i<MAX_PLY; i++) {
+        if (pv[i] == 0) {
+            break;
+        }
+        print_move(pv[i]);
+    }
+}
 
 void play(const char *fen, int moves, int depth) {
     Board board = Board(fen);
@@ -324,6 +322,7 @@ void play(const char *fen, int moves, int depth) {
 
         long long start = current_time_us();
         int move = S.negamax(board, depth);
+        //move = S.pv[0];
         long long duration = current_time_us() - start;
 
         printf("\n\nTime: %lld ms\n", duration / 1000);
@@ -337,6 +336,7 @@ void play(const char *fen, int moves, int depth) {
             int score = -evaluate(board);
             printf("score: %d\n", score*mult);
             printf("Nodes: %lld\n", S.nodes);
+            print_pv(S.pv);
         } else {
             printf("No moves!\n");
 
@@ -349,6 +349,8 @@ void play(const char *fen, int moves, int depth) {
         }
     }
 }
+
+
 
 
 
@@ -368,7 +370,7 @@ int main() {
 
     const char *fen = "1rb5/1p2k2r/p5n1/2p1pp2/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
 
-    play(tricky_position, 3, 5);
+    play(start_position, 15, 8);
 
 
     // const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";

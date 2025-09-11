@@ -548,14 +548,6 @@ constexpr inline int piece_select(Pieces piece, bool side) {
     return piece + 6*side;
 }
 
-constexpr int TARGET_SHIFT = 6;
-constexpr int PIECE_SHIFT = 12;
-constexpr int PROMOTION_SHIFT = 16;
-constexpr int CAPTURE_SHIFT = 20;
-constexpr int DOUBLE_SHIFT = 21;
-constexpr int ENPASSANT_SHIFT = 22;
-constexpr int CASTLE_SHIFT = 23;
-
 /*
 Moves
 0000 0000 0000 0000 0011 1111 Source square
@@ -576,51 +568,17 @@ constexpr inline int encode_move(int source,
                 int enpassant,
                 int castle) {
     return source
-            | (target << 6)
-            | (piece << 12)
-            | (promotion << 16)
-            | (capture << 20)
-            | (double_push << 21)
-            | (enpassant << 22)
-            | (castle << 23);
+            | (target << TARGET_SHIFT)
+            | (piece << PIECE_SHIFT)
+            | (promotion << PROMOTION_SHIFT)
+            | (capture << CAPTURE_SHIFT)
+            | (double_push << DOUBLE_SHIFT)
+            | (enpassant << ENPASSANT_SHIFT)
+            | (castle << CASTLE_SHIFT);
 }
 
-constexpr inline int get_move_source(int move) {
-    const int source_mask = 0x3F;
-    return move & source_mask;
-}
 
-constexpr inline int get_move_target(int move) {
-    const int target_mask = 0xFC0;
-    return (move & target_mask) >> TARGET_SHIFT;
-}
 
-constexpr inline int get_move_piece(int move) {
-    const int piece_mask = 0xF000;
-    return (move & piece_mask) >> PIECE_SHIFT;
-}
-
-constexpr inline int get_promotion(int move) {
-    const int promotion_mask = 0xF0000;
-    return (move & promotion_mask) >> PROMOTION_SHIFT;
-}
-
-constexpr int CAPTURE_FLAG = 0x100000;
-constexpr inline int get_capture_flag(int move) {
-    return move & CAPTURE_FLAG;
-}
-constexpr int DOUBLE_PUSH_FLAG = 0x200000;
-constexpr inline int get_double_push_flag(int move) {
-    return move & DOUBLE_PUSH_FLAG;
-}
-constexpr int ENPASSANT_FLAG = 0x400000;
-constexpr inline int get_enpassant_flag(int move) {
-    return move & ENPASSANT_FLAG;
-}
-constexpr int CASTLE_FLAG = 0x800000;
-constexpr inline int get_castle_flag(int move) {
-    return move & CASTLE_FLAG;
-}
 
 void print_move(int move) {
     printf("%c%s%s\n",
@@ -1055,8 +1013,6 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
         int move = source_sq | (P << PIECE_SHIFT);
 
         U64 pushes = get_quiet_pawn_moves(source_sq, board.allPieces, WHITE);
-        
-
 
         // extract core while loop and make generate pawn attacks and pushes separate
         move |= CAPTURE_FLAG;
@@ -1427,7 +1383,6 @@ void order_capture_first(std::vector<int> &move_list) {
     );
 }
 
-
 int mvv_lva(const Board &board, int move) {
     // enpassant?
     const auto bits = board.bitboards;
@@ -1443,22 +1398,8 @@ int mvv_lva(const Board &board, int move) {
     );
     int victim = std::distance(bits.begin()+start, it);
 
-    const int VIC_SCORE_MULT = 100;
+    const int VIC_SCORE_MULT = 128 * MOVE_SORTING_SCALE;
     return victim * VIC_SCORE_MULT + VIC_SCORE_MULT + 5 - attacker + 6 - start;
-}
-
-int score_move(const Board &board, int move) {
-    if (get_capture_flag(move)) {
-        return mvv_lva(board, move);
-    } else {
-
-    }
-
-    return 0;
-}
-
-void sort_moves(const Board &board, std::vector<int> &move_list) {
-    std::ranges::sort(move_list, {}, [&board](int move){ return -score_move(board, move); });
 }
 
 
@@ -1484,7 +1425,7 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
     }
 
     // 2-4 times faster with this!!!
-    order_capture_first(move_list);
+    //order_capture_first(move_list);
 }
 
 void generate_capture_moves(const Board &board, std::vector<int> &move_list) {
@@ -1532,7 +1473,7 @@ bool make_move(Board &board, int move) {
         board.halfMoveClock = 0;
     }
 
-    if (piece ==0 || piece == 6) {
+    if (piece == 0 || piece == 6) {
         board.halfMoveClock = 0;
     }
 
@@ -1611,6 +1552,103 @@ bool make_move(Board &board, int move) {
     board.turn ^= 1;
 
     return !is_king_exposed(board, side);
+}
+
+
+
+void unmake_move(Board &board, int move) {
+    int source_sq = get_move_source(move);
+    int target_sq = get_move_target(move);
+    int piece = get_move_piece(move);
+    int promotion = get_promotion(move);
+    bool capture = get_capture_flag(move);
+    bool double_shift = get_double_push_flag(move);
+    bool enpassant = get_enpassant_flag(move);
+    bool castle = get_castle_flag(move);
+
+    board.turn ^= 1;
+    bool side = board.turn;
+
+    // move piece on appropriate bitboard
+    board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
+
+    //board.castleFlags &= castling_rights[source_sq];
+
+    //board.halfMoveClock++;
+    board.move -= side;
+
+    if (capture) {
+        // clear captured piece
+        int start = piece_select(p, !side);
+
+        U64 mask = ~(1ULL << target_sq);
+        for (int i=start; i < start+6; i++) {
+            board.bitboards[i] &= mask;
+        }
+        board.castleFlags &= castling_rights[target_sq];
+        board.halfMoveClock = 0;
+    }
+
+    // if (piece == 0 || piece == 6) {
+    //     board.halfMoveClock = 0;
+    // }
+
+    if (promotion) {
+        board.bitboards[piece_select(p, side)] ^= 1ULL << target_sq;
+        board.bitboards[promotion] ^= 1ULL << target_sq;
+    }
+    
+
+
+    // if (double_shift) {
+    //     board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
+    // } else {
+    //     board.enPassantSquare = No_Square;
+    // }
+
+    if (enpassant) {
+        board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
+    }
+
+    //bool king_danger_illegal = 0;
+
+    if (castle) {
+        switch (target_sq) {
+        case C1:
+            board.bitboards[R] ^= 1ULL | (1ULL << D1);
+            break;
+        case G1:
+            board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            break;
+        case C8:
+            board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            break;
+        case G8:
+            board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            break;
+        
+        default:
+            assert(false);             // catch in debug
+            __builtin_unreachable();   // optimize in release
+        }
+    }
+
+    board.coloredPieces[BLACK] = board.bitboards[p]
+                               | board.bitboards[r]
+                               | board.bitboards[n]
+                               | board.bitboards[b]
+                               | board.bitboards[q]
+                               | board.bitboards[k];
+
+    board.coloredPieces[WHITE] = board.bitboards[P]
+                               | board.bitboards[R]
+                               | board.bitboards[N]
+                               | board.bitboards[B]
+                               | board.bitboards[Q]
+                               | board.bitboards[K];
+    
+    
+    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
 }
 
 

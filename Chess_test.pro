@@ -10,3 +10,5 @@ DESTDIR = bin
 TARGET = ChessTest
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000 -g  # 100 million
+QMAKE_CXXFLAGS += -std=c++20
+
