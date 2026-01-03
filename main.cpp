@@ -289,7 +289,9 @@ int Searcher::negamax(const Board &board, int depth) {
     int alpha = MIN_SCORE;
     int beta = MAX_SCORE;
 
-    negamax_rec(board, alpha, beta, depth);
+    for (int current_depth = 1; current_depth <= depth; current_depth++) {
+        negamax_rec(board, alpha, beta, current_depth);
+    }
 
     return pv[0];
 }
