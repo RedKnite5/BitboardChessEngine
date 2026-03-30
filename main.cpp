@@ -1,6 +1,6 @@
-//#include "mainwindow.h"
+#include "mainwindow.h"
 
-//#include <QApplication>
+#include <QApplication>
 
 
 #include <benchmark/benchmark.h>
@@ -405,10 +405,10 @@ int main() {
 
 
 
-    //QApplication a(argc, argv);
-    //MainWindow w;
-    //w.show();
-    //return a.exec();
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
 }
 
 
