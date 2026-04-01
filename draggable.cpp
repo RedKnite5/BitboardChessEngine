@@ -23,6 +23,7 @@ void DraggableLabel::mousePressEvent(QMouseEvent *event) {
     QDrag *drag = new QDrag(this);
     drag->setMimeData(mimeData);
     drag->setPixmap(pixmap(Qt::ReturnByValue));
+    drag->setHotSpot(QPoint(drag->pixmap().width() / 2, drag->pixmap().height() / 2));
     drag->exec(Qt::CopyAction | Qt::MoveAction);
 }
 
@@ -35,6 +36,12 @@ void DraggableLabel::dropEvent(QDropEvent *event) {
     if (event->mimeData()->hasImage()) {
         QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
         setPixmap(droppedPixmap.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+        DraggableLabel *source = qobject_cast<DraggableLabel*>(event->source());
+        if (source) {
+            source->clear();
+        }
+
         event->acceptProposedAction();
     }
 }

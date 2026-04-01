@@ -34,6 +34,8 @@ LIBS += -lbenchmark -lpthread
 # If using BENCHMARK_MAIN(), you may also want:
 # LIBS += -lbenchmark_main
 
+RESOURCES += resources.qrc
+
 SOURCES += \
     main.cpp \
     mainwindow.cpp \

@@ -356,7 +356,7 @@ void play(const char *fen, int moves, int depth) {
 
 
 
-int main() {
+int main(int argc, char **argv) {
     //init_all();
 
     //const char *position = "5B2/8/8/8/2P3R1/8/8/8 w - - 0 1";
@@ -372,7 +372,7 @@ int main() {
 
     const char *fen = "1rb5/1p2k2r/p5n1/2p1pp2/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
 
-    play(start_position, 15, 8);
+    //play(start_position, 15, 8);
 
 
     // const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";

@@ -12,6 +12,9 @@ class DraggableLabel : public QLabel {
 public:
     explicit DraggableLabel(QWidget *parent = nullptr);
 
+    int row = 0;
+    int col = 0;
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
 

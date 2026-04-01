@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/pieces">
+        <file alias="BlackBishop.png">images/Chess_bdt45.svg.png</file>
+        <file alias="WhiteBishop.png">images/Chess_blt45.svg.png</file>
+        <file alias="BlackKing.png">images/Chess_kdt45.svg.png</file>
+        <file alias="WhiteKing.png">images/Chess_klt45.svg.png</file>
+        <file alias="BlackKnight.png">images/Chess_ndt45.svg.png</file>
+        <file alias="WhiteKnight.png">images/Chess_nlt45.svg.png</file>
+        <file alias="BlackPawn.png">images/Chess_pdt45.svg.png</file>
+        <file alias="WhitePawn.png">images/Chess_plt45.svg.png</file>
+        <file alias="BlackQueen.png">images/Chess_qdt45.svg.png</file>
+        <file alias="WhiteQueen.png">images/Chess_qlt45.svg.png</file>
+        <file alias="BlackRook.png">images/Chess_rdt45.svg.png</file>
+        <file alias="WhiteRook.png">images/Chess_rlt45.svg.png</file>
+    </qresource>
+</RCC>
