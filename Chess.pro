@@ -40,12 +40,14 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     draggable.cpp \
-    board.cpp
+    board.cpp \
+    search.cpp
 
 HEADERS += \
     mainwindow.h \
     draggable.h \
-    board.h
+    board.h \
+    search.h
 
 FORMS += \
     mainwindow.ui

@@ -6,14 +6,19 @@
 #include <QMimeData>
 #include <QDrag>
 #include <QMouseEvent>
+#include <QPixmap>
+
+#include <functional>
 
 class DraggableLabel : public QLabel {
     Q_OBJECT
 public:
-    explicit DraggableLabel(QWidget *parent = nullptr);
+    using callbackType = std::function<void(DraggableLabel*, DraggableLabel*, const QPixmap)>;
+    explicit DraggableLabel(callbackType aCallback, QWidget *parent = nullptr);
 
     int row = 0;
     int col = 0;
+    callbackType callback;
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

@@ -5,11 +5,17 @@
 #include <QDrag>
 #include <QMouseEvent>
 
+#include <functional>
+
 #include "draggable.h"
 
-DraggableLabel::DraggableLabel(QWidget *parent)
+DraggableLabel::DraggableLabel(
+    callbackType aCallback,
+    QWidget *parent
+)
     : QLabel(parent)
 {
+    callback = aCallback;
     setAcceptDrops(true);
 }
 
@@ -34,14 +40,29 @@ void DraggableLabel::dragEnterEvent(QDragEnterEvent *event) {
 
 void DraggableLabel::dropEvent(QDropEvent *event) {
     if (event->mimeData()->hasImage()) {
+
+
+        const QPixmap *oldPixmapPtr = pixmap();
+        QPixmap oldPixmap;
+        if (oldPixmapPtr) {
+            oldPixmap = *pixmap();
+        } else {
+            oldPixmap = QPixmap();
+        }
+
         QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
-        setPixmap(droppedPixmap.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        setPixmap(droppedPixmap);
+
+        //QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
+        //setPixmap(droppedPixmap.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
         DraggableLabel *source = qobject_cast<DraggableLabel*>(event->source());
-        if (source) {
+        if (source && source != this) {
             source->clear();
         }
 
         event->acceptProposedAction();
+
+        callback(source, this, oldPixmap);
     }
 }
