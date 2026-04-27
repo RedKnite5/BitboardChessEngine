@@ -4,10 +4,13 @@
 #include <QMimeData>
 #include <QDrag>
 #include <QMouseEvent>
+#include <QTimer>
+#include <QApplication>
 
 #include <functional>
 
 #include "draggable.h"
+
 
 DraggableLabel::DraggableLabel(
     callbackType aCallback,
@@ -41,14 +44,7 @@ void DraggableLabel::dragEnterEvent(QDragEnterEvent *event) {
 void DraggableLabel::dropEvent(QDropEvent *event) {
     if (event->mimeData()->hasImage()) {
 
-
-        const QPixmap *oldPixmapPtr = pixmap();
-        QPixmap oldPixmap;
-        if (oldPixmapPtr) {
-            oldPixmap = *pixmap();
-        } else {
-            oldPixmap = QPixmap();
-        }
+        QPixmap oldPixmap = pixmap(Qt::ReturnByValue);
 
         QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
         setPixmap(droppedPixmap);
@@ -62,7 +58,13 @@ void DraggableLabel::dropEvent(QDropEvent *event) {
         }
 
         event->acceptProposedAction();
+        QApplication::processEvents();
 
-        callback(source, this, oldPixmap);
+        GuiMove move{source, this, oldPixmap};
+
+        callback(move);
+        // QTimer::singleShot(0, this, [this, source, oldPixmap]() {
+        //     callback(source, this, oldPixmap);
+        // });
     }
 }

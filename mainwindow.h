@@ -21,7 +21,9 @@ public:
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
     void engineTurn();
-    void playerMoved(DraggableLabel *sourceSquare, DraggableLabel *destSquare, const QPixmap takenImage);
+    void getPlayerMove(GuiMove);
+    void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
+    void playerMove(int move, int promotion, GuiMove guimove);
 
 private:
     Ui::MainWindow *ui;

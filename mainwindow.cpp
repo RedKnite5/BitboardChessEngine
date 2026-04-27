@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include <QGridLayout>
+#include <QDialog>
 #include <vector>
 #include <time.h>
 
@@ -43,10 +44,20 @@ constexpr std::array<std::string_view, 12> PieceImages = {
     "WhiteKing"
 };
 
+const int pieceSize = 50;
 
-void setPieceImage(const char *piece, DraggableLabel *square) {
+void setPieceImage(const int piece_int, QLabel *square) {
+    const char *piece = PieceImages[piece_int].data();
     QPixmap pixmap(QString(":/pieces/") + piece + ".png");
-    square->setPixmap(pixmap.scaled(50, 50, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    square->setPixmap(pixmap.scaled(pieceSize, pieceSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+void setPieceImage(const int piece_int, QPushButton *btn) {
+    const char *piece = PieceImages[piece_int].data();
+    QPixmap pixmap(QString(":/pieces/") + piece + ".png");
+    btn->setIcon(QIcon(pixmap.scaled(pieceSize, pieceSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+    btn->setIconSize(QSize(pieceSize, pieceSize));
+    btn->setFixedSize(QSize(pieceSize, pieceSize));
 }
 
 void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &squares) {
@@ -54,7 +65,7 @@ void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &s
         for (int col=0; col<8; ++col) {
             int piece = board[row][col];
             if (piece != -1) {
-                setPieceImage(PieceImages[piece].data(), squares[row][col]);
+                setPieceImage(piece, squares[row][col]);
             } else {
                 squares[row][col]->clear();
             }
@@ -76,7 +87,17 @@ void MainWindow::engineTurn() {
     printf("\n\nTime: %lld ms\n", duration / 1000);
     printf("Time: %lld s\n", duration / 1000000);
 
-    make_move(game.board, move);
+    int before_turn = game.board.turn;
+
+    bool king_safe = make_move(game.board, move);
+
+    if (!king_safe) {
+        if (is_king_exposed(game.board, !before_turn)) {
+            printf("Checkmate! You win!\n");
+        } else {
+            printf("Stalemate!\n");
+        }
+    }
 
 
     int source = get_move_source(move);
@@ -86,12 +107,30 @@ void MainWindow::engineTurn() {
     DraggableLabel *destSquare = squares[dest / 8][dest % 8];
 
     
-    const QPixmap *pieceImage = sourceSquare->pixmap();
-    if (pieceImage && !pieceImage->isNull()) {
-        destSquare->setPixmap(*pieceImage);
+    // need to change image on pawn promotions
+    const QPixmap pieceImage = sourceSquare->pixmap(Qt::ReturnByValue);
+    if (!pieceImage.isNull()) {
+        destSquare->setPixmap(pieceImage);
         sourceSquare->setPixmap(QPixmap()); 
     } else {
         printf("source: %d is empty\n", source);
+    }
+
+    int prom_piece = get_promotion(move);
+    if (prom_piece) {
+        setPieceImage(prom_piece, destSquare);
+    }
+    
+    Board b = game.board;
+    Searcher S;
+    int pot_user_move = S.negamax(b, 1);
+    bool user_has_legal_moves = make_move(b, pot_user_move);
+    if (!user_has_legal_moves) {
+        if (is_king_exposed(game.board, game.board.turn)) {
+            printf("Checkmate! I Win!\n");
+        } else {
+            printf("Stalemate!\n");
+        }
     }
 }
 
@@ -110,48 +149,109 @@ int findUserMove(int userSource, int userDest, const std::vector<int> &move_list
 }
 
 
-void MainWindow::playerMoved(DraggableLabel *sourceSquare, DraggableLabel *destSquare, const QPixmap takenImage) {
+void MainWindow::makePopup(DraggableLabel *dest, std::function<void(int)> callback) {
+    QDialog *popup = new QDialog(this);
+    popup->setWindowFlags(Qt::Popup);  // closes when you click outside
+    QHBoxLayout *layout = new QHBoxLayout(popup);
+
+    int color = 0;
+    if (dest->row == 7) {
+        color = 6;
+    }
+
+    int pieces[] = {
+        BlackKnight + color,
+        BlackBishop + color,
+        BlackQueen + color
+    };
+
+    for (int i=0; i<3; i++) {
+        QPushButton *btn = new QPushButton(popup);
+        btn->setCursor(Qt::PointingHandCursor);
+
+        int piece = pieces[i];
+
+        QObject::connect(btn, &QPushButton::clicked, [popup, callback, piece]() {
+            callback(piece);
+            popup->accept();
+        });
+
+        setPieceImage(piece, btn);
+        layout->addWidget(btn);
+    }
+
+    //popup->move(targetPosition);
+    popup->exec();  // blocks until dismissed, or use show() if you don't want blocking
+}
+
+void MainWindow::getPlayerMove(GuiMove guimove) {
     printf("Callback\n");
 
     std::vector<int> move_list;
 
     generate_moves(game.board, move_list);
 
-    int userSource = sourceSquare->row * 8 + sourceSquare->col;
-    int userDest = destSquare->row * 8 + destSquare->col;
+    int userSource = guimove.source->row * 8 + guimove.source->col;
+    int userDest = guimove.dest->row * 8 + guimove.dest->col;
     int userMove = findUserMove(userSource, userDest, move_list);
 
-    
+    if(get_promotion(userMove)) {
+        // promotion popup
+        makePopup(
+            guimove.dest,
+            [this, userMove, guimove](int promotion) {
+                playerMove(userMove, promotion, guimove);
+            }
+        );
+    } else {
+        playerMove(userMove, 0, guimove);
+    }
+}
 
-    if (userMove) {
+
+void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
+
+    int source_sq = get_move_source(move);
+
+    const int promotion_mask = ~0xF0000;
+    constexpr int PROMOTION_SHIFT = 16;
+
+    int prom_move = (move & promotion_mask) | (promotion << PROMOTION_SHIFT);
+    
+    if (prom_move) {
         // user move is psuedolegal!
 
         Board new_board = game.board;
-        bool king_safe = make_move(new_board, userMove);
+        bool king_safe = make_move(new_board, prom_move);
         if (king_safe) {
             // user move is legal!
 
             game.board = new_board;
+
+            if (promotion) {
+                setPieceImage(promotion, guimove.dest);
+            }
 
             engineTurn();
             return;
         }
     }
 
-    const QPixmap *pieceImage = destSquare->pixmap();
-    if (pieceImage && !pieceImage->isNull()) {
-        sourceSquare->setPixmap(*pieceImage);
-        destSquare->setPixmap(takenImage); 
+    // move illegal because it leaves the king vulnerable
+    const QPixmap pieceImage = guimove.dest->pixmap(Qt::ReturnByValue);
+    if (!pieceImage.isNull()) {
+        guimove.source->setPixmap(pieceImage);
+        guimove.dest->setPixmap(guimove.taken_piece); 
     } else {
         printf(
             "While trying to undo illegal move: source %d is empty\n",
-            userSource
+            guimove.source->row * 8 + guimove.source->col
         );
     }
 
     printf("User made illegal move from row %d col %d to row %d col %d\n",
-        sourceSquare->row, sourceSquare->col,
-        destSquare->row, destSquare->col);
+        guimove.source->row, guimove.source->col,
+        guimove.dest->row, guimove.dest->col);
 }
 
 
@@ -163,8 +263,8 @@ Array8x8<DraggableLabel*> setupChessboard(MainWindow *mainwindow, QWidget *paren
 
     Array8x8<DraggableLabel*> squares;
 
-    auto boundMethod = [mainwindow](DraggableLabel *src, DraggableLabel *dst, const QPixmap takenImage) {
-        mainwindow->playerMoved(src, dst, takenImage);
+    auto boundMethod = [mainwindow](GuiMove move) {
+        mainwindow->getPlayerMove(move);
     };
 
     for (int row = 0; row < 8; ++row) {
@@ -186,8 +286,18 @@ Array8x8<DraggableLabel*> setupChessboard(MainWindow *mainwindow, QWidget *paren
             square->row = row;
             square->col = col;
 
-            layout->addWidget(square, 7-row, col);
+            layout->addWidget(square, 7-row, col+1);
         }
+
+        QLabel *row_label = new QLabel(QString(QChar('a' + row)), parent);
+        row_label->setFixedSize(60, 60);
+        row_label->setAlignment(Qt::AlignCenter);
+        layout->addWidget(row_label, 8, row + 1);  // bottom row
+
+        QLabel *col_label = new QLabel(QString::number(row + 1), parent);
+        col_label->setFixedSize(60, 60);
+        col_label->setAlignment(Qt::AlignCenter);
+        layout->addWidget(col_label, 7 - row, 0);  // left column
     }
     
     parent->setLayout(layout);

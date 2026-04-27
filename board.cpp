@@ -1529,10 +1529,6 @@ bool make_move(Board &board, int move) {
         }
     }
 
-    if (king_danger_illegal) {
-        return false;
-    }
-
     board.coloredPieces[BLACK] = board.bitboards[p]
                                | board.bitboards[r]
                                | board.bitboards[n]
@@ -1550,6 +1546,10 @@ bool make_move(Board &board, int move) {
     
     board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
     board.turn ^= 1;
+
+    if (king_danger_illegal) {
+        return false;
+    }
 
     return !is_king_exposed(board, side);
 }

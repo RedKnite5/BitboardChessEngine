@@ -10,10 +10,18 @@
 
 #include <functional>
 
+class DraggableLabel;
+
+struct GuiMove {
+    DraggableLabel *source;
+    DraggableLabel *dest;
+    QPixmap taken_piece;
+};
+
 class DraggableLabel : public QLabel {
     Q_OBJECT
 public:
-    using callbackType = std::function<void(DraggableLabel*, DraggableLabel*, const QPixmap)>;
+    using callbackType = std::function<void(GuiMove)>;
     explicit DraggableLabel(callbackType aCallback, QWidget *parent = nullptr);
 
     int row = 0;
@@ -27,4 +35,6 @@ protected:
 
     void dropEvent(QDropEvent *event) override;
 };
+
+
 
