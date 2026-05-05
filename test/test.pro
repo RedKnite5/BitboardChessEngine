@@ -14,6 +14,7 @@ LIBS += -L/home/you/dev/benchmark/build/src
 LIBS += -L../lib -lchess -lgtest -lgtest_main
 INCLUDEPATH += ../lib
 
+PRE_TARGETDEPS += ../lib/libchess.a
 
 SOURCES += main.cpp
 

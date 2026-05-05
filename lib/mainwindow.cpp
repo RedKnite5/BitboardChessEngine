@@ -120,6 +120,18 @@ void MainWindow::engineTurn() {
     if (prom_piece) {
         setPieceImage(prom_piece, destSquare);
     }
+
+    int enpassant = get_enpassant_flag(move);
+    const int StartOfRank6 = 40;
+    if (enpassant != 0) {
+        int taken_pawn;
+        if (dest >= StartOfRank6) {
+            taken_pawn = dest - 8;
+        } else {
+            taken_pawn = dest + 8;
+        }
+        squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
+    }
     
     Board b = game.board;
     Searcher S;
@@ -230,6 +242,20 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
 
             if (promotion) {
                 setPieceImage(promotion, guimove.dest);
+            }
+            
+
+            int enpassant = get_enpassant_flag(move);
+            int dest = get_move_target(move);
+            const int StartOfRank6 = 40;
+            if (enpassant != 0) {
+                int taken_pawn;
+                if (dest >= StartOfRank6) {
+                    taken_pawn = dest - 8;
+                } else {
+                    taken_pawn = dest + 8;
+                }
+                squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
             }
 
             engineTurn();
