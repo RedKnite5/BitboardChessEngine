@@ -243,7 +243,6 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             if (promotion) {
                 setPieceImage(promotion, guimove.dest);
             }
-            
 
             int enpassant = get_enpassant_flag(move);
             int dest = get_move_target(move);
