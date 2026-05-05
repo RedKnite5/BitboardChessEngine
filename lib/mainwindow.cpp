@@ -73,6 +73,20 @@ void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &s
     }
 }
 
+void MainWindow::enpassant(int move) {
+    int enpassant = get_enpassant_flag(move);
+    int dest = get_move_target(move);
+    const int StartOfRank6 = 40;
+    if (enpassant != 0) {
+        int taken_pawn;
+        if (dest >= StartOfRank6) {
+            taken_pawn = dest - 8;
+        } else {
+            taken_pawn = dest + 8;
+        }
+        squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
+    }
+}
 
 void MainWindow::engineTurn() {
     const int depth = 8;
@@ -121,17 +135,7 @@ void MainWindow::engineTurn() {
         setPieceImage(prom_piece, destSquare);
     }
 
-    int enpassant = get_enpassant_flag(move);
-    const int StartOfRank6 = 40;
-    if (enpassant != 0) {
-        int taken_pawn;
-        if (dest >= StartOfRank6) {
-            taken_pawn = dest - 8;
-        } else {
-            taken_pawn = dest + 8;
-        }
-        squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
-    }
+    enpassant(move);
     
     Board b = game.board;
     Searcher S;
@@ -244,18 +248,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
                 setPieceImage(promotion, guimove.dest);
             }
 
-            int enpassant = get_enpassant_flag(move);
-            int dest = get_move_target(move);
-            const int StartOfRank6 = 40;
-            if (enpassant != 0) {
-                int taken_pawn;
-                if (dest >= StartOfRank6) {
-                    taken_pawn = dest - 8;
-                } else {
-                    taken_pawn = dest + 8;
-                }
-                squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
-            }
+            enpassant(move);
 
             engineTurn();
             return;
