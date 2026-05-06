@@ -249,6 +249,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             }
 
             enpassant(move);
+            QApplication::processEvents();
 
             engineTurn();
             return;
