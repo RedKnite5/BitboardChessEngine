@@ -20,13 +20,15 @@ SOURCES += \
     mainwindow.cpp \
     draggable.cpp \
     board.cpp \
-    search.cpp
+    search.cpp \
+    engine_worker.cpp 
 
 HEADERS += \
     mainwindow.h \
     draggable.h \
     board.h \
-    search.h
+    search.h \
+    engine_worker.h 
 
 FORMS += \
     mainwindow.ui

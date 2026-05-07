@@ -20,11 +20,14 @@ public:
     QPixmap *lastTakenPieceImage = nullptr;
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
-    void engineTurn();
+    void engineTurn(int move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
     void playerMove(int move, int promotion, GuiMove guimove);
     void enpassant(int move);
+
+signals:
+    void RequestEngineMove(Game state);
 
 private:
     Ui::MainWindow *ui;

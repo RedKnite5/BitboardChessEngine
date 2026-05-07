@@ -5,11 +5,14 @@
 #include <QDialog>
 #include <vector>
 #include <time.h>
+#include <QThread>
 
 #include "draggable.h"
 
 #include "search.h"
 #include "board.h"
+
+#include "engine_worker.h"
 
 template <typename T>
 using Array8x8 = std::array<std::array<T, 8>, 8>;
@@ -73,6 +76,7 @@ void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &s
     }
 }
 
+
 void MainWindow::enpassant(int move) {
     int enpassant = get_enpassant_flag(move);
     int dest = get_move_target(move);
@@ -88,18 +92,8 @@ void MainWindow::enpassant(int move) {
     }
 }
 
-void MainWindow::engineTurn() {
-    const int depth = 8;
-
-    long long start = current_time_us();
-    int move = game.S.negamax(game.board, depth);
-    //move = S.pv[0];
-    long long duration = current_time_us() - start;
-
+void MainWindow::engineTurn(int move) {
     print_move(move);
-
-    printf("\n\nTime: %lld ms\n", duration / 1000);
-    printf("Time: %lld s\n", duration / 1000000);
 
     int before_turn = game.board.turn;
 
@@ -251,7 +245,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             enpassant(move);
             QApplication::processEvents();
 
-            engineTurn();
+            RequestEngineMove(game);
             return;
         }
     }
@@ -362,6 +356,15 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
 
     setupPieces(board, game.board);
     updatePieceImages(board, squares);
+
+    QThread *thread = new QThread(this);
+    EngineWorker *worker = new EngineWorker;
+
+    worker->moveToThread(thread);
+    thread->start();
+
+    connect(this, &MainWindow::RequestEngineMove, worker, &EngineWorker::calculateMove);
+    connect(worker, &EngineWorker::moveReady, this, &MainWindow::engineTurn);
     
 
     
