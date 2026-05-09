@@ -62,7 +62,7 @@ void DraggableLabel::dropEvent(QDropEvent *event) {
         }
 
         event->acceptProposedAction();
-        QApplication::processEvents();
+        //QApplication::processEvents();
 
         GuiMove move{source, this, oldPixmap};
 

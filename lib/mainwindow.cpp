@@ -6,6 +6,9 @@
 #include <QThread>
 #include <QMetaType>
 
+#include <QDebug>
+#include <QElapsedTimer>
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -130,8 +133,6 @@ void MainWindow::castle(int move) {
 void MainWindow::engineTurn(int move) {
     print_move(move);
 
-    int before_turn = game.board.turn;
-
     bool king_safe = make_move(game.board, move);
 
     if (move == 0) {
@@ -238,7 +239,6 @@ void MainWindow::getPlayerMove(GuiMove guimove) {
     printf("Callback\n");
 
     std::vector<int> move_list;
-
     generate_moves(game.board, move_list);
 
     int userSource = guimove.source->row * 8 + guimove.source->col;
