@@ -11,18 +11,20 @@
 
 #include "draggable.h"
 
-
 DraggableLabel::DraggableLabel(
-    callbackType aCallback,
-    QWidget *parent
-)
+        callbackType aCallback,
+        std::shared_ptr<DragDropState> state,
+        QWidget *parent)
     : QLabel(parent)
 {
     callback = aCallback;
+    m_state = state;
     setAcceptDrops(true);
 }
 
 void DraggableLabel::mousePressEvent(QMouseEvent *event) {
+    if (!m_state->enabled) return;
+
     if (pixmap(Qt::ReturnByValue).isNull() || event->button() != Qt::LeftButton)
         return;
 
@@ -37,20 +39,22 @@ void DraggableLabel::mousePressEvent(QMouseEvent *event) {
 }
 
 void DraggableLabel::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasImage())
+    if (!m_state->enabled) return;
+
+    if (event->mimeData()->hasImage()) {
         event->acceptProposedAction();
+    }
 }
 
 void DraggableLabel::dropEvent(QDropEvent *event) {
+    if (!m_state->enabled) return;
+
     if (event->mimeData()->hasImage()) {
 
         QPixmap oldPixmap = pixmap(Qt::ReturnByValue);
 
         QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
         setPixmap(droppedPixmap);
-
-        //QPixmap droppedPixmap = QPixmap::fromImage(qvariant_cast<QImage>(event->mimeData()->imageData()));
-        //setPixmap(droppedPixmap.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
         DraggableLabel *source = qobject_cast<DraggableLabel*>(event->source());
         if (source && source != this) {
@@ -63,8 +67,5 @@ void DraggableLabel::dropEvent(QDropEvent *event) {
         GuiMove move{source, this, oldPixmap};
 
         callback(move);
-        // QTimer::singleShot(0, this, [this, source, oldPixmap]() {
-        //     callback(source, this, oldPixmap);
-        // });
     }
 }

@@ -10,6 +10,11 @@
 
 #include <functional>
 
+struct DragDropState {
+    bool enabled = true;
+};
+
+
 class DraggableLabel;
 
 struct GuiMove {
@@ -22,7 +27,10 @@ class DraggableLabel : public QLabel {
     Q_OBJECT
 public:
     using callbackType = std::function<void(GuiMove)>;
-    explicit DraggableLabel(callbackType aCallback, QWidget *parent = nullptr);
+    explicit DraggableLabel(
+        callbackType aCallback,
+        std::shared_ptr<DragDropState> state,
+        QWidget *parent = nullptr);
 
     int row = 0;
     int col = 0;
@@ -34,6 +42,9 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
 
     void dropEvent(QDropEvent *event) override;
+
+private:
+    std::shared_ptr<DragDropState> m_state;
 };
 
 

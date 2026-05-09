@@ -99,12 +99,18 @@ void MainWindow::engineTurn(int move) {
 
     bool king_safe = make_move(game.board, move);
 
+    if (move == 0) {
+        king_safe = 0;
+    }
+
     if (!king_safe) {
-        if (is_king_exposed(game.board, !before_turn)) {
+        if (is_king_exposed(game.board, !player_color)) {
             printf("Checkmate! You win!\n");
         } else {
+            printBoard(game.board);
             printf("Stalemate!\n");
         }
+        DDState->enabled = false;
     }
 
 
@@ -136,11 +142,12 @@ void MainWindow::engineTurn(int move) {
     int pot_user_move = S.negamax(b, 1);
     bool user_has_legal_moves = make_move(b, pot_user_move);
     if (!user_has_legal_moves) {
-        if (is_king_exposed(game.board, game.board.turn)) {
+        if (is_king_exposed(game.board, player_color)) {
             printf("Checkmate! I Win!\n");
         } else {
             printf("Stalemate!\n");
         }
+        DDState->enabled = false;
     }
 }
 
@@ -220,9 +227,6 @@ void MainWindow::getPlayerMove(GuiMove guimove) {
 
 
 void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
-
-    int source_sq = get_move_source(move);
-
     const int promotion_mask = ~0xF0000;
     constexpr int PROMOTION_SHIFT = 16;
 
@@ -269,21 +273,22 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
 
 
 
-Array8x8<DraggableLabel*> setupChessboard(MainWindow *mainwindow, QWidget *parent) {
+Array8x8<DraggableLabel*> MainWindow::setupChessboard(QWidget *parent) {
     QGridLayout *layout = new QGridLayout(parent);
     layout->setSpacing(0);
     layout->setContentsMargins(0, 0, 0, 0);
 
     Array8x8<DraggableLabel*> squares;
 
-    auto boundMethod = [mainwindow](GuiMove move) {
-        mainwindow->getPlayerMove(move);
+    auto boundMethod = [this](GuiMove move) {
+        this->getPlayerMove(move);
     };
 
     for (int row = 0; row < 8; ++row) {
         for (int col = 0; col < 8; ++col) {
             DraggableLabel *square = new DraggableLabel(
                 boundMethod,
+                this->DDState,
                 parent);
             square->setFixedSize(60, 60);
             square->setAlignment(Qt::AlignCenter);
@@ -345,11 +350,13 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
         row.fill(-1);
     }
 
+    DDState = std::make_shared<DragDropState>();
+
 
     QWidget *gridLayout = findChild<QWidget *>("gridLayoutWidget");
     gridLayout->setFixedSize(480, 480);
     if (gridLayout) {
-        squares = setupChessboard(this, gridLayout);
+        squares = setupChessboard(gridLayout);
     } else {
         qWarning("Grid layout widget not found in the UI.");
     }

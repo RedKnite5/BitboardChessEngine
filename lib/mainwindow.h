@@ -1,7 +1,10 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <memory>
+
 #include <QMainWindow>
+
 #include "draggable.h"
 #include "board.h"
 #include "search.h"
@@ -19,8 +22,12 @@ public:
     std::array<std::array<DraggableLabel*, 8>, 8> squares;
     QPixmap *lastTakenPieceImage = nullptr;
     QThread *thread = nullptr;
+    int player_color = 1;  // 1 for white; 0 for black
+    std::shared_ptr<DragDropState> DDState;
+
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
+    std::array<std::array<DraggableLabel*, 8>, 8> setupChessboard(QWidget *parent);
     void engineTurn(int move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);

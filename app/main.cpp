@@ -32,13 +32,16 @@ int main(int argc, char **argv) {
 
     printf("Start!\n");
 
+    // Useful positions:
+    //const char *allow_me_to_enpassant = "r1bqk1nr/p1p2ppp/8/3P4/1RPRP3/6P1/P2P3P/2BQK1NR b KQkq e3 0 1";
+    //const char *computer_about_to_win = "r3k3/pbpqb1r1/1p2Q1p1/3pP1B1/3P4/3B4/PPP4P/5RK1 w - - 1 0";
+
+
     //const char *fen = "1rb5/1p2k2r/p5n1/2p1pp2/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
 
-    //const char *fen = "8/1pk5/p7/2p4P/2B5/6P1/PPPB1PP1/2KR4 w - - 1 0";
-    //const char *fen2 = "r3k3/pbpqb1r1/1p2Q1p1/3pP1B1/3P4/3B4/PPP4P/5RK1 w - - 1 0";
-    //const char *fen3 = "rnbqkbnr/p1ppppppp/8/4P3/1p7/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-    const char *allow_me_to_enpassant = "r1bqk1nr/p1p2ppp/8/3P4/1RPRP3/6P1/P2P3P/2BQK1NR b KQkq e3 0 1";
+    const char *user_about_to_promote_and_win = "8/1pk5/p6P/2p3P1/2B5/8/PPPB1PP1/2KR4 w - - 1 0";
+    
 
-    return play_graphical(argc, argv, allow_me_to_enpassant, 15, 9);
+    return play_graphical(argc, argv, user_about_to_promote_and_win, 15, 9);
 }
 
