@@ -33,6 +33,7 @@ public:
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
     void playerMove(int move, int promotion, GuiMove guimove);
     void enpassant(int move);
+    void castle(int move);
 
 signals:
     void RequestEngineMove(Game state);

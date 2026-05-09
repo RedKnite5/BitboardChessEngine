@@ -80,7 +80,7 @@ void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &s
 void MainWindow::enpassant(int move) {
     int enpassant = get_enpassant_flag(move);
     int dest = get_move_target(move);
-    const int StartOfRank6 = 40;
+    const int StartOfRank6 = A6;  // 40
     if (enpassant != 0) {
         int taken_pawn;
         if (dest >= StartOfRank6) {
@@ -89,6 +89,41 @@ void MainWindow::enpassant(int move) {
             taken_pawn = dest + 8;
         }
         squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
+    }
+}
+
+void castle_move_rook(Array8x8<DraggableLabel*> squares, int from, int to) {
+    QPixmap rook_image = squares[from / 8][from % 8]->pixmap(Qt::ReturnByValue);
+    squares[to / 8][to % 8]->setPixmap(rook_image);
+    squares[from / 8][from % 8]->setPixmap(QPixmap());
+}
+
+void MainWindow::castle(int move) {
+    int castle = get_castle_flag(move);
+    if (!castle) {
+        return;
+    }
+
+    int dest = get_move_target(move);
+    switch (dest) {
+        case C1:
+            // A1 to D1
+            castle_move_rook(squares, A1, D1);
+            break;
+        case G1:
+            // H1 to F1
+            castle_move_rook(squares, H1, F1);
+            break;
+        case C8:
+            // A8 to D8
+            castle_move_rook(squares, A8, D8);
+            break;
+        case G8:
+            // H8 to F8
+            castle_move_rook(squares, H8, F8);
+            break;
+        default:
+            printf("Error: Castling to %d\n", dest);
     }
 }
 
@@ -133,6 +168,7 @@ void MainWindow::engineTurn(int move) {
     }
 
     enpassant(move);
+    castle(move);
     
     Board b = game.board;
     Searcher S;
@@ -244,6 +280,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             }
 
             enpassant(move);
+            castle(move);
 
             RequestEngineMove(game);
             return;
