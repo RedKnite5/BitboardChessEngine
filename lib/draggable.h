@@ -10,14 +10,16 @@
 
 #include <functional>
 
-struct DragDropState {
+class DragDropState {
+public:
     bool enabled = true;
 };
 
 
 class DraggableLabel;
 
-struct GuiMove {
+class GuiMove {
+public:
     DraggableLabel *source;
     DraggableLabel *dest;
     QPixmap taken_piece;

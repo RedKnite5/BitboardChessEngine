@@ -107,19 +107,16 @@ void MainWindow::engineTurn(int move) {
         if (is_king_exposed(game.board, !player_color)) {
             printf("Checkmate! You win!\n");
         } else {
-            printBoard(game.board);
             printf("Stalemate!\n");
         }
         DDState->enabled = false;
     }
-
 
     int source = get_move_source(move);
     int dest = get_move_target(move);
 
     DraggableLabel *sourceSquare = squares[source / 8][source % 8];
     DraggableLabel *destSquare = squares[dest / 8][dest % 8];
-
     
     // need to change image on pawn promotions
     const QPixmap pieceImage = sourceSquare->pixmap(Qt::ReturnByValue);
@@ -247,7 +244,6 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             }
 
             enpassant(move);
-            //QApplication::processEvents();
 
             RequestEngineMove(game);
             return;
@@ -352,7 +348,6 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
 
     DDState = std::make_shared<DragDropState>();
 
-
     QWidget *gridLayout = findChild<QWidget *>("gridLayoutWidget");
     gridLayout->setFixedSize(480, 480);
     if (gridLayout) {
@@ -374,9 +369,6 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
 
     connect(this, &MainWindow::RequestEngineMove, worker, &EngineWorker::calculateMove);
     connect(worker, &EngineWorker::moveReady, this, &MainWindow::engineTurn);
-    
-
-    
 }
 
 MainWindow::~MainWindow() {
@@ -386,5 +378,4 @@ MainWindow::~MainWindow() {
     }
     delete ui;
 }
-
 
