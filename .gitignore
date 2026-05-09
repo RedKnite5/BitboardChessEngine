@@ -77,4 +77,5 @@ Thumbs.db
 *.dll
 *.exe
 */bin/
+bin/
 app/app
