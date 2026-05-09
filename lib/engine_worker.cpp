@@ -7,7 +7,7 @@ void EngineWorker::calculateMove(Game state) {
     const int depth = 8;
 
     long long start = current_time_us();
-    int move = game.S.negamax(game.board, depth);
+    int move = state.S.negamax(state.board, depth);
     //move = S.pv[0];
     long long duration = current_time_us() - start;
 

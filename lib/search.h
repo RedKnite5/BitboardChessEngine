@@ -1,5 +1,11 @@
 #pragma once
 
+#include <array>
+#include <vector>
+
+#include <QMetaType>
+
+#include "board.h"
 
 constexpr unsigned int MAX_PLY = 64;
 
@@ -34,7 +40,8 @@ class Game {
     Searcher S;
     Board board;
 
+    Game() = default;
     Game(const char *fen);
 };
-
+Q_DECLARE_METATYPE(Game)
 

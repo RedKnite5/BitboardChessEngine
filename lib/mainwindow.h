@@ -18,6 +18,7 @@ public:
     Game &game;
     std::array<std::array<DraggableLabel*, 8>, 8> squares;
     QPixmap *lastTakenPieceImage = nullptr;
+    QThread *thread = nullptr;
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
     void engineTurn(int move);

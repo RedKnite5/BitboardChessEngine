@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 
 // FEN dedug positions
 inline const char *empty_board = "8/8/8/8/8/8/8/8 w - - 0 1";

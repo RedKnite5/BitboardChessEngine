@@ -17,7 +17,9 @@ int play_graphical(int argc, char **argv, const char *fen, int moves, int depth)
     w.show();
 
     if (game.board.turn == 0) {
-        QTimer::singleShot(100, &w, &MainWindow::engineTurn);
+        QTimer::singleShot(100, &w, [&w, game]() {
+            w.RequestEngineMove(game);
+        });
     }
 
     return a.exec();

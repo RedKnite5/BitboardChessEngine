@@ -1,17 +1,17 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include <vector>
+#include <time.h>
 
 #include <QGridLayout>
 #include <QDialog>
-#include <vector>
-#include <time.h>
 #include <QThread>
+#include <QMetaType>
+
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
 
 #include "draggable.h"
-
 #include "search.h"
 #include "board.h"
-
 #include "engine_worker.h"
 
 template <typename T>
@@ -243,7 +243,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             }
 
             enpassant(move);
-            QApplication::processEvents();
+            //QApplication::processEvents();
 
             RequestEngineMove(game);
             return;
@@ -357,7 +357,9 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
     setupPieces(board, game.board);
     updatePieceImages(board, squares);
 
-    QThread *thread = new QThread(this);
+    qRegisterMetaType<Game>();
+
+    thread = new QThread(this);
     EngineWorker *worker = new EngineWorker;
 
     worker->moveToThread(thread);
@@ -370,10 +372,12 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
     
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
+    if (thread) {
+        thread->quit();   // asks the thread's event loop to stop
+        thread->wait();   // blocks until the thread actually finishes
+    }
     delete ui;
 }
-
 
 

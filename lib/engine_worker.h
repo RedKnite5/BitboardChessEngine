@@ -7,8 +7,8 @@
 class EngineWorker : public QObject {
     Q_OBJECT
 public slots:
-    void calculateMove(Game state);  // whatever params you need
+    void calculateMove(Game state);
 signals:
-    void moveReady(int move);            // emitted when engine is done
+    void moveReady(int move);
 };
 
