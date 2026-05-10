@@ -35,7 +35,7 @@ void DraggableLabel::mousePressEvent(QMouseEvent *event) {
     drag->setMimeData(mimeData);
     drag->setPixmap(pixmap(Qt::ReturnByValue));
     drag->setHotSpot(QPoint(drag->pixmap().width() / 2, drag->pixmap().height() / 2));
-    drag->exec(Qt::CopyAction | Qt::MoveAction);
+    drag->exec(Qt::MoveAction);
 }
 
 void DraggableLabel::dragEnterEvent(QDragEnterEvent *event) {
@@ -63,6 +63,7 @@ void DraggableLabel::dropEvent(QDropEvent *event) {
 
         event->acceptProposedAction();
         //QApplication::processEvents();
+        //QApplication::restoreOverrideCursor();
 
         GuiMove move{source, this, oldPixmap};
 
