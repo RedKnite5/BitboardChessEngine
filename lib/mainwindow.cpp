@@ -52,6 +52,17 @@ constexpr std::array<std::string_view, 12> PieceImages = {
 
 const int pieceSize = 50;
 
+constexpr int get_lsb_index(unsigned long long x) {
+    return __builtin_ctzll(x);
+}
+
+constexpr int get_lsb_index_safe(uint64_t bitBoard) {
+    // returns -1 if input is 0
+    int is_zero = bitBoard == 0;
+    int safe_ctz = get_lsb_index(bitBoard | is_zero);
+    return safe_ctz - is_zero;
+}
+
 void setPieceImage(const int piece_int, QLabel *square) {
     const char *piece = PieceImages[piece_int].data();
     QPixmap pixmap(QString(":/pieces/") + piece + ".png");
@@ -128,6 +139,27 @@ void MainWindow::castle(int move) {
     }
 }
 
+void MainWindow::clearHighlights() {
+    int square = get_lsb_index_safe(highlighted);
+    while (square >= 0) {
+        printf("square: %d\n", square);
+        QPalette palette = squares[square]->palette();
+        QColor color = ((square + square/8) % 2 == 1) ? Qt::white : Qt::gray;
+        palette.setColor(QPalette::Window, color);
+        squares[square]->setPalette(palette);
+
+        highlighted &= highlighted - 1;
+        square = get_lsb_index_safe(highlighted);
+    }
+}
+
+void MainWindow::highlight(int square) {
+    QPalette palette = squares[square]->palette();
+    palette.setColor(QPalette::Window, QColor(255, 253, 208));
+    squares[square]->setPalette(palette);
+    highlighted |= 1ULL << square;
+}
+
 void MainWindow::engineTurn(int move) {
     print_move(move);
     // need to test stalemate detenction more 5/11/26
@@ -169,6 +201,10 @@ void MainWindow::engineTurn(int move) {
 
     enpassant(move);
     castle(move);
+
+    clearHighlights();
+    highlight(source);
+    highlight(dest);
     
     Board b = game.board;
     Searcher S;
@@ -281,6 +317,10 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             enpassant(move);
             castle(move);
 
+            clearHighlights();
+            highlight(get_move_source(move));
+            highlight(get_move_target(move));
+
             RequestEngineMove(game);
             return;
         }
@@ -355,18 +395,21 @@ std::array<DraggableLabel*, 64> MainWindow::setupChessboard(QWidget *parent) {
     return squares;
 }
 
+void setPieceOnSquare(int i, std::array<int, 64> &board, Board &bitboard) {
+    for (int p=0; p<12; ++p) {
+        if (bitboard.bitboards[p] & (1ULL << i)) {
+            board[i] = p;
+            return;
+        }
+    }
+}
+
 void setupPieces(std::array<int, 64> &board, Board &bitboard) {
     for (int i=0; i<64; ++i) {
         if ((bitboard.allPieces & (1ULL << i)) == 0) {
             continue;
         }
-        for (int p=0; p<12; ++p) {
-            if (bitboard.bitboards[p] & (1ULL << i)) {
-                board[i] = p;
-                continue;
-            }
-
-        }
+        setPieceOnSquare(i, board, bitboard);
     }
 }
 

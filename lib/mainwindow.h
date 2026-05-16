@@ -24,6 +24,7 @@ public:
     QThread *thread = nullptr;
     int player_color = 1;  // 1 for white; 0 for black
     std::shared_ptr<DragDropState> DDState;
+    uint64_t highlighted = 0;
 
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
@@ -34,6 +35,8 @@ public:
     void playerMove(int move, int promotion, GuiMove guimove);
     void enpassant(int move);
     void castle(int move);
+    void clearHighlights();
+    void highlight(int square);
 
 signals:
     void RequestEngineMove(Game state);

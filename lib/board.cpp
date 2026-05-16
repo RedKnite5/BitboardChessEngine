@@ -233,15 +233,16 @@ constexpr U64 rookMagicNumbers[64] = {
     576461044378009634
 };
 
-constexpr inline int count_bits(unsigned long long x) {
+constexpr int count_bits(unsigned long long x) {
     return __builtin_popcountll(x);
 }
 
-constexpr inline int get_lsb_index(unsigned long long x) {
+constexpr int get_lsb_index(unsigned long long x) {
     return __builtin_ctzll(x);
 }
 
-constexpr inline int get_lsb_index_safe(U64 bitBoard) {
+constexpr int get_lsb_index_safe(U64 bitBoard) {
+    // returns -1 if input is 0
     int is_zero = bitBoard == 0;
     int safe_ctz = get_lsb_index(bitBoard | is_zero);
     return safe_ctz - is_zero;
@@ -544,7 +545,7 @@ constexpr std::array<char, 64> castling_rights = {
 };
 
 
-constexpr inline int piece_select(Pieces piece, bool side) {
+constexpr int piece_select(Pieces piece, bool side) {
     return piece + 6*side;
 }
 
@@ -559,7 +560,7 @@ Moves
 0100 0000 0000 0000 0000 0000 Enpassant flag
 1000 0000 0000 0000 0000 0000 Castle flag
 */
-constexpr inline int encode_move(int source,
+constexpr int encode_move(int source,
                 int target,
                 int piece,
                 int promotion,
