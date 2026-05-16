@@ -19,7 +19,7 @@ class MainWindow : public QMainWindow
 
 public:
     Game &game;
-    std::array<std::array<DraggableLabel*, 8>, 8> squares;
+    std::array<DraggableLabel*, 64> squares;
     QPixmap *lastTakenPieceImage = nullptr;
     QThread *thread = nullptr;
     int player_color = 1;  // 1 for white; 0 for black
@@ -27,7 +27,7 @@ public:
 
     MainWindow(Game &aGame, QWidget *parent = nullptr);
     ~MainWindow();
-    std::array<std::array<DraggableLabel*, 8>, 8> setupChessboard(QWidget *parent);
+    std::array<DraggableLabel*, 64> setupChessboard(QWidget *parent);
     void engineTurn(int move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);

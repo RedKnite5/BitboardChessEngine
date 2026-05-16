@@ -4,7 +4,8 @@
 
 
 void EngineWorker::calculateMove(Game state) {
-    const int depth = 1;
+    // depth 9 > 1500 elo
+    const int depth = 9;
 
     long long start = current_time_us();
     int move = state.S.negamax(state.board, depth);

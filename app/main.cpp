@@ -41,9 +41,11 @@ int main(int argc, char **argv) {
 
     //const char *user_about_to_promote_and_win = "8/1pk5/p6P/2p3P1/2B5/8/PPPB1PP1/2KR4 w - - 1 0";
 
-    const char *castling = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 ";
+    //const char *castling = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 ";
+
+    const char *start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
     
 
-    return play_graphical(argc, argv, castling, 15, 9);
+    return play_graphical(argc, argv, start, 15, 9);
 }
 

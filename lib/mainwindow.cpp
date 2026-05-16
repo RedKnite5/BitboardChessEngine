@@ -66,15 +66,13 @@ void setPieceImage(const int piece_int, QPushButton *btn) {
     btn->setFixedSize(QSize(pieceSize, pieceSize));
 }
 
-void updatePieceImages(const Array8x8<int> &board, Array8x8<DraggableLabel *> &squares) {
-    for (int row=0; row<8; ++row) {
-        for (int col=0; col<8; ++col) {
-            int piece = board[row][col];
-            if (piece != -1) {
-                setPieceImage(piece, squares[row][col]);
-            } else {
-                squares[row][col]->clear();
-            }
+void updatePieceImages(const std::array<int, 64> &board, std::array<DraggableLabel *, 64> &squares) {
+    for (int s=0; s<64; ++s) {
+        int piece = board[s];
+        if (piece != -1) {
+            setPieceImage(piece, squares[s]);
+        } else {
+            squares[s]->clear();
         }
     }
 }
@@ -91,14 +89,14 @@ void MainWindow::enpassant(int move) {
         } else {
             taken_pawn = dest + 8;
         }
-        squares[taken_pawn / 8][taken_pawn % 8]->setPixmap(QPixmap());
+        squares[taken_pawn]->setPixmap(QPixmap());
     }
 }
 
-void castle_move_rook(Array8x8<DraggableLabel*> squares, int from, int to) {
-    QPixmap rook_image = squares[from / 8][from % 8]->pixmap(Qt::ReturnByValue);
-    squares[to / 8][to % 8]->setPixmap(rook_image);
-    squares[from / 8][from % 8]->setPixmap(QPixmap());
+void castle_move_rook(std::array<DraggableLabel*, 64> squares, int from, int to) {
+    QPixmap rook_image = squares[from]->pixmap(Qt::ReturnByValue);
+    squares[to]->setPixmap(rook_image);
+    squares[from]->setPixmap(QPixmap());
 }
 
 void MainWindow::castle(int move) {
@@ -132,6 +130,7 @@ void MainWindow::castle(int move) {
 
 void MainWindow::engineTurn(int move) {
     print_move(move);
+    // need to test stalemate detenction more 5/11/26
 
     bool king_safe = make_move(game.board, move);
 
@@ -151,8 +150,8 @@ void MainWindow::engineTurn(int move) {
     int source = get_move_source(move);
     int dest = get_move_target(move);
 
-    DraggableLabel *sourceSquare = squares[source / 8][source % 8];
-    DraggableLabel *destSquare = squares[dest / 8][dest % 8];
+    DraggableLabel *sourceSquare = squares[source];
+    DraggableLabel *destSquare = squares[dest];
     
     // need to change image on pawn promotions
     const QPixmap pieceImage = sourceSquare->pixmap(Qt::ReturnByValue);
@@ -306,40 +305,41 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
 
 
 
-Array8x8<DraggableLabel*> MainWindow::setupChessboard(QWidget *parent) {
+std::array<DraggableLabel*, 64> MainWindow::setupChessboard(QWidget *parent) {
     QGridLayout *layout = new QGridLayout(parent);
     layout->setSpacing(0);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    Array8x8<DraggableLabel*> squares;
+    std::array<DraggableLabel*, 64> squares;
 
     auto boundMethod = [this](GuiMove move) {
         this->getPlayerMove(move);
     };
 
+    for (int s = 0; s < 64; ++s) {
+        DraggableLabel *square = new DraggableLabel(
+            boundMethod,
+            this->DDState,
+            parent);
+        square->setFixedSize(60, 60);
+        square->setAlignment(Qt::AlignCenter);
+
+        QColor color = ((s + s/8) % 2 == 1) ? Qt::white : Qt::gray;
+        QPalette palette = square->palette();
+        palette.setColor(QPalette::Window, color);
+        square->setAutoFillBackground(true);
+        square->setPalette(palette);
+
+        square->setObjectName(QString("square_%1").arg(s + 1));
+        squares[s] = square;
+        square->row = s / 8;
+        square->col = s % 8;
+
+        layout->addWidget(square, 7-square->row, square->col+1);
+    }
+
+
     for (int row = 0; row < 8; ++row) {
-        for (int col = 0; col < 8; ++col) {
-            DraggableLabel *square = new DraggableLabel(
-                boundMethod,
-                this->DDState,
-                parent);
-            square->setFixedSize(60, 60);
-            square->setAlignment(Qt::AlignCenter);
-
-            QColor color = ((row + col) % 2 == 1) ? Qt::white : Qt::gray;
-            QPalette palette = square->palette();
-            palette.setColor(QPalette::Window, color);
-            square->setAutoFillBackground(true);
-            square->setPalette(palette);
-
-            square->setObjectName(QString("square_%1").arg(row * 8 + col + 1));
-            squares[row][col] = square;
-            square->row = row;
-            square->col = col;
-
-            layout->addWidget(square, 7-row, col+1);
-        }
-
         QLabel *row_label = new QLabel(QString(QChar('a' + row)), parent);
         row_label->setFixedSize(60, 60);
         row_label->setAlignment(Qt::AlignCenter);
@@ -355,14 +355,14 @@ Array8x8<DraggableLabel*> MainWindow::setupChessboard(QWidget *parent) {
     return squares;
 }
 
-void setupPieces(Array8x8<int> &board, Board &bitboard) {
+void setupPieces(std::array<int, 64> &board, Board &bitboard) {
     for (int i=0; i<64; ++i) {
         if ((bitboard.allPieces & (1ULL << i)) == 0) {
             continue;
         }
         for (int p=0; p<12; ++p) {
             if (bitboard.bitboards[p] & (1ULL << i)) {
-                board[i / 8][i % 8] = p;
+                board[i] = p;
                 continue;
             }
 
@@ -378,10 +378,8 @@ MainWindow::MainWindow(Game &aGame, QWidget *parent)
 {
     ui->setupUi(this);
 
-    Array8x8<int> board;
-    for (auto& row : board) {
-        row.fill(-1);
-    }
+    std::array<int, 64> board;
+    board.fill(-1);
 
     DDState = std::make_shared<DragDropState>();
 
