@@ -13,7 +13,7 @@ inline const char *cmk_position = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1
 
 constexpr bool BLACK = false;
 constexpr bool WHITE = true;
-enum Square {
+enum Square : uint8_t {
     A1 = 0, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,

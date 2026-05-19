@@ -4,7 +4,7 @@
 
 
 void EngineWorker::calculateMove(Game state) {
-    // depth 9 > 1500 elo
+    // depth 9 > 2200 elo
     const int depth = 9;
 
     long long start = current_time_us();

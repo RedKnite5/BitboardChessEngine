@@ -971,7 +971,7 @@ inline U64 get_queen_attacks(unsigned char square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, int side) {
+inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
     int shift = side * 16 - 8;
 
     // 0 if next pawn square, (square + 8), is blocked
@@ -984,21 +984,13 @@ inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, int side) {
 inline bool is_square_attacked(const Board &board, unsigned char square, bool side) {
     // if a black pawn was on square then the two spaces it attacks are where
     // that square could be attacked from by white pawns
-    U64 attacked = pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)];
-    attacked |= knightAttackMasks[square] & board.bitboards[piece_select(n, side)];
-    if (attacked) {
-        return attacked;
-    }
-    attacked = get_bishop_attacks(square, board.allPieces);
-    attacked &= (board.bitboards[piece_select(b, side)] | board.bitboards[piece_select(q, side)]);
-    if (attacked) {
-        return attacked;
-    }
-    attacked = get_rook_attacks(square, board.allPieces);
-    attacked &= (board.bitboards[piece_select(r, side)] | board.bitboards[piece_select(q, side)]);
-    attacked |= kingAttackMasks[square] & board.bitboards[piece_select(k, side)];
-
-    return attacked;
+    return (pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)])
+        || (knightAttackMasks[square] & board.bitboards[piece_select(n, side)])
+        || (get_bishop_attacks(square, board.allPieces)
+            & (board.bitboards[piece_select(b, side)] | board.bitboards[piece_select(q, side)]))
+        || (get_rook_attacks(square, board.allPieces)
+            & (board.bitboards[piece_select(r, side)] | board.bitboards[piece_select(q, side)]))
+        || (kingAttackMasks[square] & board.bitboards[piece_select(k, side)]);
 }
 
 
@@ -1653,7 +1645,7 @@ void unmake_move(Board &board, int move) {
 }
 
 
-std::array<int, 12> MATERIAL_SCORE = {
+constexpr std::array<int, 12> MATERIAL_SCORE = {
     -100,     // black pawn
     -320,     // black knight
     -350,     // black bishop
@@ -1739,7 +1731,7 @@ constexpr std::array<std::array<char, 64>, 6> PIECE_SQUARES = {
     KING_SQUARES
 };
 
-inline int flip(int square) {
+constexpr int flip(int square) {
     return square ^ 56;
 }
 
