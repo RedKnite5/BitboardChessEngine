@@ -121,6 +121,10 @@ void sort_moves(const Board &board, std::vector<int> &move_list);
 
 
 int Searcher::score_move(const Board &board, int move) {
+    if (follow_pv && pv[ply] == move) {
+        return 100000;
+    }
+
     if (get_capture_flag(move)) {
         return mvv_lva(board, move);
     } else {
@@ -160,6 +164,9 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
     sort_moves(board, move_list);
+    if (move_list[0] != pv[ply]) {
+        follow_pv = false;
+    }
 
     for (int move : move_list) {
         Board new_board = board;
@@ -195,11 +202,15 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     move_list.reserve(32);
     generate_moves(board, move_list);
     sort_moves(board, move_list);
+    if (move_list[0] != pv[ply]) {
+        follow_pv = false;
+    }
 
     //print_move_list(move_list);
 
     bool legal_moves = false;
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
+    bool found_pv = false;
 
     for (int move : move_list) {
         Board new_board = board;
@@ -210,7 +221,32 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 
         legal_moves = true;
 
-        int score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+        int score;
+        // Principal Variation Search
+        if (found_pv) {
+            /*
+            https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
+            Once you've found a move with a score that is between alpha and beta,
+            the rest of the moves are searched with the goal of proving that
+            they are all bad.  It's possible to do this a bit faster than a
+            search that worries that one of the remaining moves might be good.
+            */
+            score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
+            if (score > alpha && score < beta) {
+                /*
+                If the algorithm finds out that it was wrong, and that one of the
+                subsequent moves was better than the first PV move, it has to
+                search again, in the normal alpha-beta manner.  This happens
+                sometimes, and it's a waste of time, but generally not often
+                enough to counteract the savings gained from doing the "bad move
+                proof" search referred to earlier.
+                */
+                score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+            }
+
+        } else {
+            score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+        }
 
         if (score >= beta) {
             // fail high
@@ -226,13 +262,14 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 
         if (score > alpha) {
 
-            //if (!get_capture_flag(move)) {
+            if (!get_capture_flag(move)) {
                 int piece = get_move_piece(move);
                 int target = get_move_target(move);
                 history_moves[piece][target] += depth;
-            //}
+            }
 
             alpha = score;
+            found_pv = true;
 
             pv[pv_index] = move;
             std::copy_n(
@@ -264,6 +301,7 @@ int Searcher::negamax(const Board &board, int depth) {
 
     int alpha = MIN_SCORE;
     int beta = MAX_SCORE;
+    follow_pv = true;
 
     for (int current_depth = 1; current_depth <= depth; current_depth++) {
         negamax_rec(board, alpha, beta, current_depth);

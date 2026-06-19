@@ -142,7 +142,7 @@ void MainWindow::castle(int move) {
 void MainWindow::clearHighlights() {
     int square = get_lsb_index_safe(highlighted);
     while (square >= 0) {
-        printf("square: %d\n", square);
+        //printf("square: %d\n", square);
         QPalette palette = squares[square]->palette();
         QColor color = ((square + square/8) % 2 == 1) ? Qt::white : Qt::gray;
         palette.setColor(QPalette::Window, color);

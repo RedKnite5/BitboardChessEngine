@@ -26,6 +26,8 @@ class Searcher {
     std::array<std::array<int, MAX_PLY>, 2> killer_moves = {};
     std::array<std::array<short, 64>, 12> history_moves = {};
 
+    bool follow_pv : 1 = false;
+
     int score_move(const Board &board, int move);
     void sort_moves(const Board &board, std::vector<int> &move_list);
 

@@ -36,7 +36,7 @@ inline const char *square_coords[] = {
 };
 
 
-enum Pieces {
+enum Pieces : uint8_t {
     p, n, b, r, q, k,  // Black pieces
     P, N, B, R, Q, K,  // White pieces
     Last
