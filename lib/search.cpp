@@ -190,6 +190,8 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     return alpha;
 }
 
+constexpr int full_depth_moves = 4;
+constexpr int reduction_limit  = 3;
 int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     if (depth == 0) {
         return quiscence(board, alpha, beta);
@@ -210,7 +212,8 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 
     bool legal_moves = false;
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
-    bool found_pv = false;
+    //bool found_pv = false;
+    int moves_searched = -1;
 
     for (int move : move_list) {
         Board new_board = board;
@@ -218,34 +221,35 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
         if (!king_safe) {
             continue;
         }
+        moves_searched++;
 
         legal_moves = true;
 
         int score;
-        // Principal Variation Search
-        if (found_pv) {
-            /*
-            https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
-            Once you've found a move with a score that is between alpha and beta,
-            the rest of the moves are searched with the goal of proving that
-            they are all bad.  It's possible to do this a bit faster than a
-            search that worries that one of the remaining moves might be good.
-            */
-            score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
-            if (score > alpha && score < beta) {
-                /*
-                If the algorithm finds out that it was wrong, and that one of the
-                subsequent moves was better than the first PV move, it has to
-                search again, in the normal alpha-beta manner.  This happens
-                sometimes, and it's a waste of time, but generally not often
-                enough to counteract the savings gained from doing the "bad move
-                proof" search referred to earlier.
-                */
-                score = -negamax_rec(new_board, -beta, -alpha, depth-1);
-            }
-
-        } else {
+        // Principal Variation Search and LMR
+        // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
+        // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
+        if (moves_searched == 0) {
             score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+        } else {
+            bool okay_to_reduce = moves_searched > full_depth_moves
+                && depth > reduction_limit
+                && !get_capture_flag(move)
+                && !get_capture_flag(move)
+                && move != killer_moves[0][ply]
+                && move != killer_moves[1][ply];
+            if (okay_to_reduce) {
+                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-2);
+            } else {
+                // Hack to ensure that full-depth search is done
+                score = alpha + 1;
+            }
+           if (score > alpha) {
+                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
+                if (score > alpha && score < beta) {
+                    score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+                }
+            }
         }
 
         if (score >= beta) {
@@ -269,7 +273,7 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
             }
 
             alpha = score;
-            found_pv = true;
+            //found_pv = true;
 
             pv[pv_index] = move;
             std::copy_n(
