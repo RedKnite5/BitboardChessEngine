@@ -212,7 +212,6 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
 
     bool legal_moves = false;
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
-    //bool found_pv = false;
     int moves_searched = -1;
 
     for (int move : move_list) {
@@ -236,7 +235,7 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
             bool okay_to_reduce = moves_searched > full_depth_moves
                 && depth > reduction_limit
                 && !get_capture_flag(move)
-                && !get_capture_flag(move)
+                && !get_promotion(move)
                 && move != killer_moves[0][ply]
                 && move != killer_moves[1][ply];
             if (okay_to_reduce) {
@@ -245,7 +244,7 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
                 // Hack to ensure that full-depth search is done
                 score = alpha + 1;
             }
-           if (score > alpha) {
+            if (score > alpha) {
                 score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
                 if (score > alpha && score < beta) {
                     score = -negamax_rec(new_board, -beta, -alpha, depth-1);
@@ -274,7 +273,6 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
             }
 
             alpha = score;
-            //found_pv = true;
 
             pv[pv_index] = move;
             std::copy_n(
@@ -282,7 +280,6 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
                 MAX_PLY - ply - 1,
                 pv.begin() + pv_index + 1
             );
-
         }
     }
 
