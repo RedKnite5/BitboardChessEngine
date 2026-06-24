@@ -232,6 +232,7 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
         if (moves_searched == 0) {
             score = -negamax_rec(new_board, -beta, -alpha, depth-1);
         } else {
+            // should also look for check and maybe some other stuff
             bool okay_to_reduce = moves_searched > full_depth_moves
                 && depth > reduction_limit
                 && !get_capture_flag(move)
