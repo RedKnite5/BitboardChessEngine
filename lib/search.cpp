@@ -190,15 +190,34 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     return alpha;
 }
 
+// without it dep: 3,294,491
+// without aspiration windows with it dep: 6,488,521
+// with aspiration windows: 7,557,049
 constexpr int full_depth_moves = 4;
 constexpr int reduction_limit  = 3;
-int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
+int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     if (depth == 0) {
         return quiscence(board, alpha, beta);
     }
     // debug info
     nodes++;
     ply++;
+
+    if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
+        //Board new_board = board;
+        make_null_move(board);
+        //printf("Before search\n");
+        int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
+        //printf("After search\n");
+
+        unmake_null_move(board);
+        if (score >= beta) {
+            null_moved = true;
+            ply--;
+            return beta;
+        }
+    }
+    null_moved = false;
 
     std::vector<int> move_list;
     move_list.reserve(32);
@@ -275,6 +294,10 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
             alpha = score;
 
             pv[pv_index] = move;
+            // if (ply > MAX_PLY) {
+            //     printf("ply: %d\n");
+            // }
+
             std::copy_n(
                 pv.begin() + pv_index + MAX_PLY - ply,
                 MAX_PLY - ply - 1,
@@ -298,17 +321,50 @@ int Searcher::negamax_rec(const Board &board, int alpha, int beta, int depth) {
     return alpha;
 }
 
-int Searcher::negamax(const Board &board, int depth) {
+int Searcher::negamax(Board &board, int depth) {
     nodes = 0;
 
     int alpha = MIN_SCORE;
     int beta = MAX_SCORE;
     follow_pv = true;
+    int score;
 
-    for (int current_depth = 1; current_depth <= depth; current_depth++) {
-        negamax_rec(board, alpha, beta, current_depth);
+    const int window = 1000;
+    bool failed_low = false;
+    bool failed_high = false;
+
+    int current_depth = 1;
+    while (current_depth <= depth) {
+        score = negamax_rec(board, alpha, beta, current_depth);
+        printf("depth: %d score: %d alpha: %d beta: %d\n", current_depth, score, alpha, beta);
+
+        if (score <= alpha) {
+            printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
+            alpha = MIN_SCORE;
+            failed_low = true;
+            if (failed_high) {
+                beta = MAX_SCORE;
+            }
+            continue;
+        }
+        if (score >= beta) {
+            printf("Failed high depth: %d score: %d beta: %d\n", current_depth, score, beta);
+            beta = MAX_SCORE;
+            failed_high = true;
+            if (failed_low) {
+                alpha = MIN_SCORE;
+            }
+            continue;
+        }
+
+        alpha = score - window;
+        beta = score + window;
+        failed_low = false;
+        failed_high = false;
+
+        current_depth++;
     }
-
+    //printf("Score: %d\n", score);
     return pv[0];
 }
 

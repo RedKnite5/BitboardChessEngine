@@ -26,9 +26,10 @@ public:
     std::shared_ptr<DragDropState> DDState;
     uint64_t highlighted = 0;
 
-    MainWindow(Game &aGame, QWidget *parent = nullptr);
+    MainWindow(Game &aGame, int aDepth, QWidget *parent = nullptr);
     ~MainWindow();
     std::array<DraggableLabel*, 64> setupChessboard(QWidget *parent);
+    int depth;
     void engineTurn(int move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
@@ -39,7 +40,7 @@ public:
     void highlight(int square);
 
 signals:
-    void RequestEngineMove(Game state);
+    void RequestEngineMove(Game state, int depth);
 
 private:
     Ui::MainWindow *ui;

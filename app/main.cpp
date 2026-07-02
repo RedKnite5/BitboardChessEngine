@@ -6,19 +6,19 @@
 
 
 
-int play_graphical(int argc, char **argv, const char *fen, int moves, int depth) {
+int play_graphical(int argc, char **argv, const char *fen, int depth) {
     Game game(fen);
 
     printBoard(game.board);
 
 
     QApplication a(argc, argv);
-    MainWindow w(game);
+    MainWindow w(game, depth);
     w.show();
 
     if (game.board.turn == 0) {
-        QTimer::singleShot(100, &w, [&w, game]() {
-            w.RequestEngineMove(game);
+        QTimer::singleShot(100, &w, [&w, game, depth]() {
+            w.RequestEngineMove(game, depth);
         });
     }
 
@@ -44,8 +44,9 @@ int main(int argc, char **argv) {
     //const char *castling = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 ";
 
     const char *start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
-    
+    const char *tricky_position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 
-    return play_graphical(argc, argv, start, 15, 9);
+    // depth 9 > 2200 elo
+    return play_graphical(argc, argv, tricky_position, 9);
 }
 

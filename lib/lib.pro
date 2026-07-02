@@ -5,6 +5,7 @@ TARGET = chess
 QT += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++20
+#CONFIG += debug
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000  # 100 million
 #QMAKE_CXXFLAGS += -g

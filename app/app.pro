@@ -1,6 +1,7 @@
 TEMPLATE = app
 QT += core gui widgets
 
+#CONFIG += debug
 LIBS += -L../lib -lchess
 INCLUDEPATH += ../lib
 

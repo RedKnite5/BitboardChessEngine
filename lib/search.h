@@ -27,13 +27,14 @@ class Searcher {
     std::array<std::array<short, 64>, 12> history_moves = {};
 
     bool follow_pv : 1 = false;
+    bool null_moved: 1 = false;
 
     int score_move(const Board &board, int move);
     void sort_moves(const Board &board, std::vector<int> &move_list);
 
     int quiscence(const Board &board, int alpha, int beta);
-    int negamax_rec(const Board &board, int alpha, int beta, int depth);
-    int negamax(const Board &board, int depth);
+    int negamax_rec(Board &board, int alpha, int beta, int depth);
+    int negamax(Board &board, int depth);
 };
 
 

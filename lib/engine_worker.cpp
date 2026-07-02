@@ -3,12 +3,7 @@
 #include "engine_worker.h"
 
 
-void EngineWorker::calculateMove(Game state) {
-    // depth 9 > 2200 elo
-    const int depth = 9;
-
-    Game state_copy = state;
-
+void EngineWorker::calculateMove(Game state, int depth) {
     long long start = current_time_us();
 
     int move = state.S.negamax(state.board, depth);

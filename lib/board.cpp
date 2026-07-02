@@ -1568,7 +1568,7 @@ void unmake_move(Board &board, int move) {
     //board.castleFlags &= castling_rights[source_sq];
 
     //board.halfMoveClock++;
-    board.move -= side;
+    board.move -= !side;
 
     if (capture) {
         // clear captured piece
@@ -1642,6 +1642,17 @@ void unmake_move(Board &board, int move) {
     
     
     board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
+}
+
+
+void make_null_move(Board &board) {
+    board.move += !board.turn;
+    board.turn ^= 1;
+}
+
+void unmake_null_move(Board &board) {
+    board.turn ^= 1;
+    board.move -= !board.turn;
 }
 
 
@@ -1766,6 +1777,15 @@ int evaluate(const Board &board) {
             total += PIECE_SQUARES[piece-6][square];
         }
     }
+
+    // int stage = 12000-white_total;
+    // int cap = stage < 0 ? stage : 0;
+    // int min = cap > 5000 ? cap : 5000;
+
+    // if (side) {
+    //     total += 40;
+    // }
+
 
     // for negamax posative means good, negative means bad, for both players
     return total * sign;

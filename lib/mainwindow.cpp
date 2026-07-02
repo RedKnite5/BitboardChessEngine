@@ -271,8 +271,6 @@ void MainWindow::makePopup(DraggableLabel *dest, std::function<void(int)> callba
 }
 
 void MainWindow::getPlayerMove(GuiMove guimove) {
-    printf("Callback\n");
-
     std::vector<int> move_list;
     generate_moves(game.board, move_list);
 
@@ -321,7 +319,7 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             highlight(get_move_source(move));
             highlight(get_move_target(move));
 
-            RequestEngineMove(game);
+            RequestEngineMove(game, depth);
             return;
         }
     }
@@ -414,12 +412,14 @@ void setupPieces(std::array<int, 64> &board, Board &bitboard) {
 }
 
 
-MainWindow::MainWindow(Game &aGame, QWidget *parent)
+MainWindow::MainWindow(Game &aGame, int aDepth, QWidget *parent)
     : QMainWindow(parent),
     game(aGame),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    depth = aDepth;
 
     std::array<int, 64> board;
     board.fill(-1);

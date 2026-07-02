@@ -148,6 +148,9 @@ void generate_capture_moves(const Board &board, std::vector<int> &move_list);
 
 bool make_move(Board &board, int move);
 
+void make_null_move(Board &board);
+void unmake_null_move(Board &board);
+
 int evaluate(const Board &board);
 
 void printAllAttackedSquares(const Board &board, bool side);
