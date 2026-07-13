@@ -614,11 +614,11 @@ void print_move_list(std::vector<int> &move_list) {
 
 
 Board::Board() {
-    move = 0;
-    turn = WHITE;
-    castleFlags = Castle_wk | Castle_wq | Castle_bk | Castle_bq;
-    halfMoveClock = 0;  // 50 move rule
-    coloredPieces = {{0xFFFFULL << 48, 0xFFFFULL}};
+    this->move = 0;
+    this->turn = WHITE;
+    this->castleFlags = Castle_wk | Castle_wq | Castle_bk | Castle_bq;
+    this->halfMoveClock = 0;  // 50 move rule
+    this->coloredPieces = {{0xFFFFULL << 48, 0xFFFFULL}};
     U64 whitePawns = 0xFF << 8;
     U64 whiteRooks = 1 | (1 << 7);
     U64 whiteKnights = (1 << 1) | (1 << 6);
@@ -632,7 +632,7 @@ Board::Board() {
     U64 blackQueens = 1ULL << 59;
     U64 blackKing = 1ULL << 60;
 
-    bitboards = {
+    this->bitboards = {
         blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing,
         whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing
     };
@@ -640,69 +640,69 @@ Board::Board() {
     // ...
     // bitboards[K] = whiteKing;
 
-    coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
-    coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
-    allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
+    this->coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
+    this->coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
+    this->allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
 }
 
 // Constructor to initialize from a FEN string
 Board::Board(const char *str) {
-    bitboards = {0};
+    this->bitboards = {0};
     int i = 0;
     int square = 56;
     bool piecePlacement = true;
-    coloredPieces = {0};
-    allPieces = 0;
+    this->coloredPieces = {0};
+    this->allPieces = 0;
     while (piecePlacement) {
         char c = str[i];
         switch (c) {
             case 'r':
-                bitboards[r] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[r] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'n':
-                bitboards[n] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[n] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'b':
-                bitboards[b] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[b] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'q':
-                bitboards[q] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[q] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'k':
-                bitboards[k] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[k] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'p':
-                bitboards[p] |= 1ULL << square;
-                coloredPieces[BLACK] |= 1ULL << square;
+                this->bitboards[p] |= 1ULL << square;
+                this->coloredPieces[BLACK] |= 1ULL << square;
                 break;
             case 'R':
-                bitboards[R] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[R] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case 'N':
-                bitboards[N] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[N] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case 'B':
-                bitboards[B] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[B] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case 'Q':
-                bitboards[Q] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[Q] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case 'K':
-                bitboards[K] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[K] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case 'P':
-                bitboards[P] |= 1ULL << square;
-                coloredPieces[WHITE] |= 1ULL << square;
+                this->bitboards[P] |= 1ULL << square;
+                this->coloredPieces[WHITE] |= 1ULL << square;
                 break;
             case '/':
                 square -= 17;
@@ -724,9 +724,9 @@ Board::Board(const char *str) {
     }
 
     if (str[i] == 'w') {
-        turn = 1; // White to move
+        this->turn = 1; // White to move
     } else if (str[i] == 'b') {
-        turn = 0; // Black to move
+        this->turn = 0; // Black to move
     } else {
         std::cerr << "Invalid turn in FEN string turn: " << str[i] << std::endl;
         exit(EXIT_FAILURE);
@@ -739,22 +739,22 @@ Board::Board(const char *str) {
     }
     i++;
 
-    castleFlags = Castle_none;
+    this->castleFlags = Castle_none;
     bool castling = true;
     while (castling) {
         char c = str[i];
         switch (c) {
             case 'K':
-                castleFlags |= Castle_wk;
+                this->castleFlags |= Castle_wk;
                 break;
             case 'Q':
-                castleFlags |= Castle_wq;
+                this->castleFlags |= Castle_wq;
                 break;
             case 'k':
-                castleFlags |= Castle_bk;
+                this->castleFlags |= Castle_bk;
                 break;
             case 'q':
-                castleFlags |= Castle_bq;
+                this->castleFlags |= Castle_bq;
                 break;
             case '-':
                 i++;
@@ -771,10 +771,10 @@ Board::Board(const char *str) {
     }
 
     if (str[i] == '-') {
-        enPassantSquare = No_Square; // No en passant square
+        this->enPassantSquare = No_Square; // No en passant square
         i++;
     } else if (str[i] >= 'a' && str[i] <= 'h' && str[i + 1] >= '1' && str[i + 1] <= '8') {
-        enPassantSquare = static_cast<Square>((str[i + 1] - '1') * 8 + (str[i] - 'a'));
+        this->enPassantSquare = static_cast<Square>((str[i + 1] - '1') * 8 + (str[i] - 'a'));
         if (str[i+1] == '\0') {
             std::cerr << "Invalid en passant square in FEN string: " << str[i] << str[i + 1] << std::endl;
             exit(EXIT_FAILURE);
@@ -792,9 +792,9 @@ Board::Board(const char *str) {
     i++;
 
     // Half-move clock
-    halfMoveClock = 0;
+    this->halfMoveClock = 0;
     while (str[i] >= '0' && str[i] <= '9') {
-        halfMoveClock = halfMoveClock * 10 + (str[i] - '0');
+        this->halfMoveClock = this->halfMoveClock * 10 + (str[i] - '0');
         i++;
     }
     
@@ -806,13 +806,81 @@ Board::Board(const char *str) {
     i++;
 
     // Full-move number
-    move = 0;
+    this->move = 0;
     while (str[i] >= '0' && str[i] <= '9') {
-        move = move * 10 + (str[i] - '0');
+        this->move = this->move * 10 + (str[i] - '0');
         i++;
     }
     // Update allPieces
-    allPieces = coloredPieces[WHITE] | coloredPieces[BLACK];
+    this->allPieces = this->coloredPieces[WHITE] | this->coloredPieces[BLACK];
+}
+
+
+// https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
+constexpr U64 rand64(U64& state) {
+    U64 z = (state += 0x9E3779B97F4A7C15ULL);
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
+
+constexpr U64 rand64_no_state(U64 state) {
+    U64 z = (state += 0x9E3779B97F4A7C15ULL);
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+    return z ^ (z >> 31);
+}
+
+constexpr std::array<std::array<U64, 64>, 12> piece_keys_gen() {
+    std::array<std::array<U64, 64>, 12> arr;
+    U64 state = 1234;
+    for (int i=0; i<12; i++) {
+        for (int j=0; j<64; j++) {
+            arr[i][j] = rand64(state);
+        }
+    }
+    return arr;
+}
+
+constexpr std::array<U64, 16> enpassant_keys_gen(U64 seed) {
+    std::array<U64, 16> arr;
+    U64 state = 12345 + seed;
+    for (int i=0; i<16; i++) {
+        arr[i] = rand64(state);
+    }
+    return arr;
+}
+
+constexpr std::array<std::array<U64, 64>, 12> piece_keys = piece_keys_gen();
+constexpr std::array<U64, 16> enpassant_keys = enpassant_keys_gen(0);
+constexpr std::array<U64, 16> castle_keys = enpassant_keys_gen(987);
+constexpr U64 side_key = rand64_no_state(123);
+
+U64 Board::zHash() {
+    U64 hash = castle_keys[this->castleFlags];
+
+    for (int piece=0; piece<12; piece++) {
+        U64 bb = this->bitboards[piece];
+        while (bb) {
+            int index = get_lsb_index_safe(bb);
+            hash ^= piece_keys[piece][index];
+            bb ^= 1ULL << index;
+        }
+    }
+
+    if (this->enPassantSquare < 64) {
+        int ep_index = this->enPassantSquare - 16;
+        if (ep_index >= 32) {
+            ep_index -= 24;
+        }
+        hash ^= enpassant_keys[ep_index];
+    }
+
+    if (this->turn) {
+        hash ^= side_key;
+    }
+
+    return hash;
 }
 
 void printBitBoard_stream(U64 bitBoard, std::ostream& out) {

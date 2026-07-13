@@ -64,6 +64,7 @@ class Board {
     // Constructor to initialize from a FEN string
     Board(const char *str);
 
+    uint64_t zHash();
 };
 
 constexpr int TARGET_SHIFT = 6;
