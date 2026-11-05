@@ -1,0 +1,37 @@
+[
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/lib",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -std=c++20 -flto -fuse-linker-plugin -ffat-lto-objects -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o mainwindow.o /home/veronica/Documents/cpp/Chess/lib/mainwindow.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/lib/mainwindow.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/lib",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -std=c++20 -flto -fuse-linker-plugin -ffat-lto-objects -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o draggable.o /home/veronica/Documents/cpp/Chess/lib/draggable.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/lib/draggable.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/lib",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -std=c++20 -flto -fuse-linker-plugin -ffat-lto-objects -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o board.o /home/veronica/Documents/cpp/Chess/lib/board.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/lib/board.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/lib",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -std=c++20 -flto -fuse-linker-plugin -ffat-lto-objects -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o search.o /home/veronica/Documents/cpp/Chess/lib/search.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/lib/search.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/lib",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -std=c++20 -flto -fuse-linker-plugin -ffat-lto-objects -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o engine_worker.o /home/veronica/Documents/cpp/Chess/lib/engine_worker.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/lib/engine_worker.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/app",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -I. -I../lib -I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCore -o main.o /home/veronica/Documents/cpp/Chess/app/main.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/app/main.cpp"
+  },
+  {
+    "directory": "/home/veronica/Documents/cpp/Chess/test",
+    "command": "g++ -c -pipe -O2 -Wall -Wextra -fPIC -g -std=c++20 -I. -I../lib -I/home/you/dev/benchmark/include -o main.o /home/veronica/Documents/cpp/Chess/test/main.cpp",
+    "file": "/home/veronica/Documents/cpp/Chess/test/main.cpp"
+  }
+]

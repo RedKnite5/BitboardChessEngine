@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <ostream>
+#include <vector>
+#include <array>
 
 // FEN dedug positions
 inline const char *empty_board = "8/8/8/8/8/8/8/8 w - - 0 1";
@@ -52,6 +54,7 @@ class Board {
     std::array<uint64_t, 12> bitboards;
     std::array<uint64_t, 2> coloredPieces;
     uint64_t allPieces = 0;
+    uint64_t hash_key = 0;
     Square enPassantSquare = No_Square;
     unsigned short move;
     unsigned char halfMoveClock;  //  draw claimable at 100, forced at 150
@@ -63,6 +66,8 @@ class Board {
 
     // Constructor to initialize from a FEN string
     Board(const char *str);
+
+    bool operator==(const Board) const;
 
     uint64_t zHash();
 };
@@ -113,6 +118,7 @@ constexpr inline int get_castle_flag(int move) {
 }
 
 void print_move(int move);
+std::string format_move(int move);
 
 void print_move_list(std::vector<int> &move_list);
 
@@ -146,6 +152,8 @@ int mvv_lva(const Board &board, int move);
 
 void generate_moves(const Board &board, std::vector<int> &move_list);
 void generate_capture_moves(const Board &board, std::vector<int> &move_list);
+
+void generate_legal_moves(const Board &board, std::vector<int> &move_list);
 
 bool make_move(Board &board, int move);
 

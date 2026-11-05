@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+#include <unordered_map>
+#include <random>
+
+
 #include "board.cpp"
 
 
@@ -41,10 +46,10 @@ std::array<char, 8> move_int_to_move_array(int move) {
 
 void print_array(std::array<char, 8> ar) {
     printf("{%s, %s, %c, %c, %d, %d, %d, %d}",
-        square_coords[ar[0]],
-        square_coords[ar[1]],
-        ascii_pieces[ar[2]],
-        ascii_pieces[ar[3]],
+        square_coords[static_cast<unsigned char>(ar[0])],
+        square_coords[static_cast<unsigned char>(ar[1])],
+        ascii_pieces[static_cast<unsigned char>(ar[2])],
+        ascii_pieces[static_cast<unsigned char>(ar[3])],
         ar[4],
         ar[5],
         ar[6],
@@ -190,6 +195,43 @@ TEST(StartingBoard, WhitePawns) {
     EXPECT_EQ(bd.bitboards[P], whitePawns);
 }
 
+
+TEST(ZHashing, HashStart) {
+    Board bd = Board();
+    U64 correct_hash = 3770636898827649812;
+    U64 hash = bd.zHash();
+    EXPECT_EQ(hash, correct_hash);
+}
+
+TEST(ZHashing, HashesDistinct) {
+    std::mt19937 mt(69);
+
+    std::unordered_map<U64, Board> map;
+    std::vector<int> move_list;
+
+    for (int i=0; i<100000; i++) {
+        std::uniform_int_distribution<int> dist(5, 60);
+        int plys = dist(mt);
+        Board bd = Board();
+        for (int j=0; j<=plys; j++) {
+            move_list.clear();
+            generate_legal_moves(bd, move_list);
+            if (move_list.size() == 0) {
+                break;
+            }
+
+            std::uniform_int_distribution<int> vec_dist(0, move_list.size()-1);
+            int random_index = vec_dist(mt);
+            make_move(bd, move_list[random_index]);
+        }
+        U64 hash = bd.zHash();
+        if (map.contains(hash)) {
+            EXPECT_EQ(map[hash], bd);
+        } else {
+            map.insert({hash, bd});
+        }
+    }
+}
 
 
 TEST(SlidingAttacks, Rook1) {
@@ -502,6 +544,129 @@ TEST(MoveOrdering, TestMVV_LVA_Qp) {
     EXPECT_EQ(mvv_lva(board, call_encode(move)), 1 + 128 * MOVE_SORTING_SCALE);
 }
 
+
+TEST(MakeMove, MovePawn) {
+    Board bd = Board();
+    int move = encode_move(A2, A3, P, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveRook) {
+    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 0 1");
+    int move = encode_move(A1, A2, R, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/P7/RPPPPPPP/1NBQKBNR b Kkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveKnight) {
+    Board bd = Board();
+    int move = encode_move(B1, C3, N, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveBishop) {
+    Board bd = Board("rnbqkbnr/p1pppppp/1p6/8/8/1P6/P1PPPPPP/RNBQKBNR w KQkq - 0 1");
+    int move = encode_move(C1, B2, B, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/p1pppppp/1p6/8/8/1P6/PBPPPPPP/RN1QKBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveQueen) {
+    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1");
+    int move = encode_move(D1, D2, Q, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/3P4/PPPQPPPP/RNB1KBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveKing) {
+    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 1");
+    int move = encode_move(E1, E2, K, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPPKPPP/RNBQ1BNR b kq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveBlackPawn) {
+    Board bd = Board("rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1");
+    int move = encode_move(D7, D6, p, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/ppp1pppp/3p4/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveDoublePush) {
+    Board bd = Board();
+    int move = encode_move(A2, A4, P, p, 0, 1, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a3 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MovePawnCapture) {
+    Board bd = Board("rnbqkb1r/pppppppp/8/8/4n3/3P3P/PPP1PPP1/RNBQKBNR w KQkq - 0 1");
+    int move = encode_move(D3, E4, P, p, 1, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkb1r/pppppppp/8/8/4P3/7P/PPP1PPP1/RNBQKBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveEnPassant) {
+    Board bd = Board("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1");
+    int move = encode_move(B4, A3, p, p, 1, 0, 1, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/p1pppppp/8/8/8/p5PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveEnPassant2) {
+    Board bd = Board("rnbqkbnr/ppp1pppp/8/8/3pP3/6PP/PPPP1P2/RNBQKBNR b KQkq e3 0 1");
+    int move = encode_move(D4, E3, p, p, 1, 0, 1, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/ppp1pppp/8/8/8/4p1PP/PPPP1P2/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveWhiteEnPassant) {
+    Board bd = Board("rnbqkbnr/p1ppppp1/7p/Pp6/8/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 1");
+    int move = encode_move(A5, B6, P, P, 1, 0, 1, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/p1ppppp1/1P5p/8/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(MakeMove, MoveIgnoreEnPassant) {
+    Board bd = Board("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1");
+    int move = encode_move(C7, C6, p, p, 0, 0, 0, 0);
+    make_move(bd, move);
+    Board correct_result = Board("rnbqkbnr/p2ppppp/2p5/8/Pp6/6PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+
+    // printBoard(bd);
+    // printBoard(correct_result);
+}
+
+
+
 /*
 TEST(MoveOrdering, Sorting) {
     const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";
@@ -577,6 +742,9 @@ TEST(MoveOrdering, Sorting) {
 }
 */
 
+// TEST(FindMate) {
+
+// }
 
 int main(int argc, char **argv) {
 

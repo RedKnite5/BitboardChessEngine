@@ -7,6 +7,7 @@
 #include <array>
 #include <cassert>
 #include <algorithm>
+#include <format>
 
 using U64 = uint64_t;
 
@@ -582,7 +583,11 @@ constexpr int encode_move(int source,
 
 
 void print_move(int move) {
-    printf("%c%s%s\n",
+    printf("%s\n", format_move(move).c_str());
+}
+
+std::string format_move(int move) {
+    return std::format("{}{}{}",
         ascii_pieces[get_move_piece(move)],
         square_coords[get_move_source(move)],
         square_coords[get_move_target(move)]
@@ -642,7 +647,9 @@ Board::Board() {
 
     this->coloredPieces[BLACK] = blackRooks | blackKnights | blackBishops | blackQueens | blackKing | blackPawns;
     this->coloredPieces[WHITE] = whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing | whitePawns;
-    this->allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
+    this->allPieces = this->coloredPieces[BLACK] | this->coloredPieces[WHITE];
+
+    this->hash_key = this->zHash();
 }
 
 // Constructor to initialize from a FEN string
@@ -813,8 +820,13 @@ Board::Board(const char *str) {
     }
     // Update allPieces
     this->allPieces = this->coloredPieces[WHITE] | this->coloredPieces[BLACK];
+
+    this->hash_key = this->zHash();
 }
 
+bool Board::operator==(const Board rhs) const {
+    return this->turn == rhs.turn && this->castleFlags == rhs.castleFlags && this->bitboards == rhs.bitboards;
+}
 
 // https://rosettacode.org/wiki/Pseudo-random_numbers/Splitmix64
 constexpr U64 rand64(U64& state) {
@@ -825,10 +837,7 @@ constexpr U64 rand64(U64& state) {
 }
 
 constexpr U64 rand64_no_state(U64 state) {
-    U64 z = (state += 0x9E3779B97F4A7C15ULL);
-    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-    z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-    return z ^ (z >> 31);
+    return rand64(state);
 }
 
 constexpr std::array<std::array<U64, 64>, 12> piece_keys_gen() {
@@ -856,6 +865,10 @@ constexpr std::array<U64, 16> enpassant_keys = enpassant_keys_gen(0);
 constexpr std::array<U64, 16> castle_keys = enpassant_keys_gen(987);
 constexpr U64 side_key = rand64_no_state(123);
 
+constexpr int halfway = 32;
+constexpr int two_rows = 16;
+constexpr int three_rows = 24;
+
 U64 Board::zHash() {
     U64 hash = castle_keys[this->castleFlags];
 
@@ -869,9 +882,9 @@ U64 Board::zHash() {
     }
 
     if (this->enPassantSquare < 64) {
-        int ep_index = this->enPassantSquare - 16;
-        if (ep_index >= 32) {
-            ep_index -= 24;
+        int ep_index = this->enPassantSquare - two_rows;
+        if (ep_index >= halfway) {
+            ep_index -= three_rows;
         }
         hash ^= enpassant_keys[ep_index];
     }
@@ -1468,7 +1481,6 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
     move_list.clear();
 
     if (board.turn) {
-        // white
         generate_pawn_moves_white(board, move_list);
         generate_knight_moves_white(board, move_list);
         generate_bishop_moves_white(board, move_list);
@@ -1476,7 +1488,6 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
         generate_queen_moves_white(board, move_list);
         generate_king_moves_white(board, move_list);
     } else {
-        // black
         generate_pawn_moves_black(board, move_list);
         generate_knight_moves_black(board, move_list);
         generate_bishop_moves_black(board, move_list);
@@ -1484,9 +1495,22 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
         generate_queen_moves_black(board, move_list);
         generate_king_moves_black(board, move_list);
     }
+}
 
-    // 2-4 times faster with this!!!
-    //order_capture_first(move_list);
+// inefficient
+void generate_legal_moves(const Board &board, std::vector<int> &move_list) {
+    generate_moves(board, move_list);
+    unsigned int i = 0;
+    while (i < move_list.size()) {
+        Board temp_board = board;
+        bool valid = make_move(temp_board, move_list[i]);
+        if (valid) {
+            i++;
+        } else {
+            move_list[i] = move_list[move_list.size()-1];
+            move_list.pop_back();
+        }
+    }
 }
 
 void generate_capture_moves(const Board &board, std::vector<int> &move_list) {
@@ -1516,7 +1540,9 @@ bool make_move(Board &board, int move) {
 
     // move piece on appropriate bitboard
     board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
+    board.hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
 
+    board.hash_key ^= castle_keys[board.castleFlags];
     board.castleFlags &= castling_rights[source_sq];
 
     board.halfMoveClock++;
@@ -1526,33 +1552,56 @@ bool make_move(Board &board, int move) {
         // clear captured piece
         int start = piece_select(p, !side);
 
-        U64 mask = ~(1ULL << target_sq);
+        U64 target = 1ULL << target_sq;
+        U64 mask = ~target;
         for (int i=start; i < start+6; i++) {
-            board.bitboards[i] &= mask;
+            if (board.bitboards[i] & target) {
+                board.hash_key ^= piece_keys[i][target_sq];
+                board.bitboards[i] &= mask;
+                break;
+            }
         }
         board.castleFlags &= castling_rights[target_sq];
         board.halfMoveClock = 0;
     }
+
+    board.hash_key ^= castle_keys[board.castleFlags];
 
     if (piece == 0 || piece == 6) {
         board.halfMoveClock = 0;
     }
 
     if (promotion) {
-        board.bitboards[piece_select(p, side)] ^= 1ULL << target_sq;
+        int pawn_color = piece_select(p, side);
+        board.bitboards[pawn_color] ^= 1ULL << target_sq;
         board.bitboards[promotion] ^= 1ULL << target_sq;
+        board.hash_key ^= piece_keys[pawn_color][target_sq] ^ piece_keys[promotion][target_sq];
     }
     
 
+    if (board.enPassantSquare < 64) {
+        int ep_index = board.enPassantSquare - two_rows;
+        if (ep_index >= halfway) {
+            ep_index -= three_rows;
+        }
+        board.hash_key ^= enpassant_keys[ep_index];
+    }
 
     if (double_shift) {
         board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
+
+        int ep_index = board.enPassantSquare - two_rows;
+        if (ep_index > halfway) {
+            ep_index -= three_rows;
+        }
+        board.hash_key ^= enpassant_keys[ep_index];
     } else {
         board.enPassantSquare = No_Square;
     }
 
     if (enpassant) {
         board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
+        board.hash_key ^= piece_keys[piece_select(p, !side)][target_sq + 8 - side*two_rows];
     }
 
     bool king_danger_illegal = 0;
@@ -1607,6 +1656,7 @@ bool make_move(Board &board, int move) {
     
     board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
     board.turn ^= 1;
+    board.hash_key ^= side_key;
 
     if (king_danger_illegal) {
         return false;

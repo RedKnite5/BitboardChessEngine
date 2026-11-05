@@ -46,7 +46,9 @@ int main(int argc, char **argv) {
     const char *start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ";
     const char *tricky_position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
 
+    const char *bash_game = "r2k3r/5pbp/1pQ1pn2/p5B1/4P3/2N5/PPP2PPP/2K2B1R w kq - 0 1 ";
+
     // depth 9 > 2200 elo
-    return play_graphical(argc, argv, tricky_position, 9);
+    return play_graphical(argc, argv, start, 11);
 }
 

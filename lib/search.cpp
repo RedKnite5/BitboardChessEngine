@@ -204,7 +204,6 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     ply++;
 
     if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
-        //Board new_board = board;
         make_null_move(board);
         //printf("Before search\n");
         int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
