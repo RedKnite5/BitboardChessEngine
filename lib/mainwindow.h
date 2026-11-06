@@ -30,12 +30,12 @@ public:
     ~MainWindow();
     std::array<DraggableLabel*, 64> setupChessboard(QWidget *parent);
     int depth;
-    void engineTurn(int move);
+    void engineTurn(Move move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
-    void playerMove(int move, int promotion, GuiMove guimove);
-    void enpassant(int move);
-    void castle(int move);
+    void playerMove(Move move, int promotion, GuiMove guimove);
+    void enpassant(Move move);
+    void castle(Move move);
     void clearHighlights();
     void highlight(int square);
 

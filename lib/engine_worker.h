@@ -9,6 +9,6 @@ class EngineWorker : public QObject {
 public slots:
     void calculateMove(Game state, int depth);
 signals:
-    void moveReady(int move);
+    void moveReady(Move move);
 };
 

@@ -14,11 +14,11 @@ long driver(Board &board, int depth) {
     }
     long nodes = 0;
 
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
 
-    for (int move : move_list) {
+    for (Move move : move_list) {
         Board new_board = board;
         bool king_safe = make_move(new_board, move);
         if (!king_safe) {
@@ -30,16 +30,16 @@ long driver(Board &board, int depth) {
 }
 
 
-std::array<char, 8> move_int_to_move_array(int move) {
+std::array<char, 8> move_int_to_move_array(Move move) {
     std::array<char, 8> ar;
-    ar[0] = get_move_source(move);
-    ar[1] = get_move_target(move);
-    ar[2] = get_move_piece(move);
-    ar[3] = get_promotion(move);
-    ar[4] = (bool)get_capture_flag(move);
-    ar[5] = (bool)get_double_push_flag(move);
-    ar[6] = (bool)get_enpassant_flag(move);
-    ar[7] = (bool)get_castle_flag(move);
+    ar[0] = move.get_move_source();
+    ar[1] = move.get_move_target();
+    ar[2] = move.get_move_piece();
+    ar[3] = move.get_promotion();
+    ar[4] = (bool)move.get_capture_flag();
+    ar[5] = (bool)move.get_double_push_flag();
+    ar[6] = (bool)move.get_enpassant_flag();
+    ar[7] = (bool)move.get_castle_flag();
     return ar;
 }
 
@@ -57,21 +57,21 @@ void print_array(std::array<char, 8> ar) {
     );
 }
 
-void print_move_as_array(int move) {
+void print_move_as_array(Move move) {
     print_array(move_int_to_move_array(move));
 }
 
 template <std::size_t... I>
-int call_encode(const std::array<char, 8> &ar, std::index_sequence<I...>) {
+Move call_encode(const std::array<char, 8> &ar, std::index_sequence<I...>) {
     return encode_move(ar[I]...);
 }
 
-int call_encode(const std::array<char, 8> &ar) {
+Move call_encode(const std::array<char, 8> &ar) {
     return call_encode(ar, std::make_index_sequence<8>{});
 }
 
-bool COMPARE_MOVE_LIST_UNORDERED(std::vector<std::array<char, 8>> expected_array, std::vector<int> result) {
-    std::vector<int> expected;
+bool COMPARE_MOVE_LIST_UNORDERED(std::vector<std::array<char, 8>> expected_array, std::vector<Move> result) {
+    std::vector<Move> expected;
     for (auto um: expected_array) {
         expected.push_back(call_encode(um));
     }
@@ -207,7 +207,7 @@ TEST(ZHashing, HashesDistinct) {
     std::mt19937 mt(69);
 
     std::unordered_map<U64, Board> map;
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
 
     for (int i=0; i<100000; i++) {
         std::uniform_int_distribution<int> dist(5, 60);
@@ -287,7 +287,7 @@ TEST(AllSquaresAttacked, StartingPositionWhite) {
 TEST(MoveGeneration, Castling1) {
     const char *position = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<int> res;
+    std::vector<Move> res;
 
     std::vector<std::array<char, 8>> expected = {
         {A2, A3, P, p, 0, 0, 0, 0},
@@ -324,7 +324,7 @@ TEST(MoveGeneration, Castling1) {
 TEST(MoveGeneration, Castling2) {
     const char *position = "r3k2r/pppppppp/8/8/8/8/8/RN2K2R w Qkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<int> res;
+    std::vector<Move> res;
     std::vector<std::array<char, 8>> expected = {
         {B1, D2, N, p, 0, 0, 0, 0},
         {B1, A3, N, p, 0, 0, 0, 0},
@@ -358,7 +358,7 @@ TEST(MoveGeneration, Castling2) {
 TEST(MoveGeneration, TrickyPositionWhite) {
     const char *position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<int> res;
+    std::vector<Move> res;
     std::vector<std::array<char, 8>> expected = {
         {A2, A3, P, p, 0, 0, 0, 0},
         {A2, A4, P, p, 0, 1, 0, 0},
@@ -417,7 +417,7 @@ TEST(MoveGeneration, TrickyPositionWhite) {
 TEST(MoveGeneration, TrickyPositionBlack) {
     const char *position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<int> res;
+    std::vector<Move> res;
 
     std::vector<std::array<char, 8>> expected = {
         {H3, G2, p, p, 1, 0, 0, 0},
@@ -474,7 +474,7 @@ TEST(MoveGeneration, TrickyPositionBlack) {
 TEST(MoveGeneration, TestEnpassant1) {
     const char *position = "k7/7P/8/3pP3/8/K7/8/8 w - d6 0 1";
     Board bd = Board(position);
-    std::vector<int> res;
+    std::vector<Move> res;
 
     std::vector<std::array<char, 8>> expected = {
         {E5, E6, P, p, 0, 0, 0, 0},
@@ -545,9 +545,17 @@ TEST(MoveOrdering, TestMVV_LVA_Qp) {
 }
 
 
+void move_test(const char *start, Move move, const char *end) {
+    Board bd = Board(start);
+    make_move(bd, move);
+    Board correct_result = Board(end);
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
 TEST(MakeMove, MovePawn) {
     Board bd = Board();
-    int move = encode_move(A2, A3, P, p, 0, 0, 0, 0);
+    Move move = encode_move(A2, A3, P, p, 0, 0, 0, 0);
     make_move(bd, move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
     EXPECT_EQ(bd, correct_result);
@@ -555,17 +563,14 @@ TEST(MakeMove, MovePawn) {
 }
 
 TEST(MakeMove, MoveRook) {
-    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 0 1");
-    int move = encode_move(A1, A2, R, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/P7/RPPPPPPP/1NBQKBNR b Kkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/1ppppppp/p7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(A1, A2, R, p, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/p7/8/8/P7/RPPPPPPP/1NBQKBNR b Kkq - 0 1");
 }
 
 TEST(MakeMove, MoveKnight) {
     Board bd = Board();
-    int move = encode_move(B1, C3, N, p, 0, 0, 0, 0);
+    Move move = encode_move(B1, C3, N, p, 0, 0, 0, 0);
     make_move(bd, move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR b KQkq - 0 1");
     EXPECT_EQ(bd, correct_result);
@@ -573,44 +578,32 @@ TEST(MakeMove, MoveKnight) {
 }
 
 TEST(MakeMove, MoveBishop) {
-    Board bd = Board("rnbqkbnr/p1pppppp/1p6/8/8/1P6/P1PPPPPP/RNBQKBNR w KQkq - 0 1");
-    int move = encode_move(C1, B2, B, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/p1pppppp/1p6/8/8/1P6/PBPPPPPP/RN1QKBNR b KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/p1pppppp/1p6/8/8/1P6/P1PPPPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(C1, B2, B, p, 0, 0, 0, 0),
+        "rnbqkbnr/p1pppppp/1p6/8/8/1P6/PBPPPPPP/RN1QKBNR b KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveQueen) {
-    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1");
-    int move = encode_move(D1, D2, Q, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/3P4/PPPQPPPP/RNB1KBNR b KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/1ppppppp/p7/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(D1, D2, Q, p, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/p7/8/8/3P4/PPPQPPPP/RNB1KBNR b KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveKing) {
-    Board bd = Board("rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 1");
-    int move = encode_move(E1, E2, K, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPPKPPP/RNBQ1BNR b kq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(E1, E2, K, p, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/p7/8/8/4P3/PPPPKPPP/RNBQ1BNR b kq - 0 1");
 }
 
 TEST(MakeMove, MoveBlackPawn) {
-    Board bd = Board("rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1");
-    int move = encode_move(D7, D6, p, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/ppp1pppp/3p4/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/pppppppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(D7, D6, p, p, 0, 0, 0, 0),
+        "rnbqkbnr/ppp1pppp/3p4/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveDoublePush) {
     Board bd = Board();
-    int move = encode_move(A2, A4, P, p, 0, 1, 0, 0);
+    Move move = encode_move(A2, A4, P, p, 0, 1, 0, 0);
     make_move(bd, move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a3 0 1");
     EXPECT_EQ(bd, correct_result);
@@ -618,52 +611,109 @@ TEST(MakeMove, MoveDoublePush) {
 }
 
 TEST(MakeMove, MovePawnCapture) {
-    Board bd = Board("rnbqkb1r/pppppppp/8/8/4n3/3P3P/PPP1PPP1/RNBQKBNR w KQkq - 0 1");
-    int move = encode_move(D3, E4, P, p, 1, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkb1r/pppppppp/8/8/4P3/7P/PPP1PPP1/RNBQKBNR b KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkb1r/pppppppp/8/8/4n3/3P3P/PPP1PPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(D3, E4, P, p, 1, 0, 0, 0),
+        "rnbqkb1r/pppppppp/8/8/4P3/7P/PPP1PPP1/RNBQKBNR b KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveEnPassant) {
-    Board bd = Board("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1");
-    int move = encode_move(B4, A3, p, p, 1, 0, 1, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/p1pppppp/8/8/8/p5PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1",
+        encode_move(B4, A3, p, p, 1, 0, 1, 0),
+        "rnbqkbnr/p1pppppp/8/8/8/p5PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveEnPassant2) {
-    Board bd = Board("rnbqkbnr/ppp1pppp/8/8/3pP3/6PP/PPPP1P2/RNBQKBNR b KQkq e3 0 1");
-    int move = encode_move(D4, E3, p, p, 1, 0, 1, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/ppp1pppp/8/8/8/4p1PP/PPPP1P2/RNBQKBNR w KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/ppp1pppp/8/8/3pP3/6PP/PPPP1P2/RNBQKBNR b KQkq e3 0 1",
+        encode_move(D4, E3, p, p, 1, 0, 1, 0),
+        "rnbqkbnr/ppp1pppp/8/8/8/4p1PP/PPPP1P2/RNBQKBNR w KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveWhiteEnPassant) {
-    Board bd = Board("rnbqkbnr/p1ppppp1/7p/Pp6/8/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 1");
-    int move = encode_move(A5, B6, P, P, 1, 0, 1, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/p1ppppp1/1P5p/8/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+    move_test("rnbqkbnr/p1ppppp1/7p/Pp6/8/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 1",
+        encode_move(A5, B6, P, P, 1, 0, 1, 0),
+        "rnbqkbnr/p1ppppp1/1P5p/8/8/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
 }
 
 TEST(MakeMove, MoveIgnoreEnPassant) {
-    Board bd = Board("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1");
-    int move = encode_move(C7, C6, p, p, 0, 0, 0, 0);
-    make_move(bd, move);
-    Board correct_result = Board("rnbqkbnr/p2ppppp/2p5/8/Pp6/6PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
-    EXPECT_EQ(bd, correct_result);
-    EXPECT_EQ(bd.hash_key, correct_result.zHash());
-
-    // printBoard(bd);
-    // printBoard(correct_result);
+    move_test("rnbqkbnr/p1pppppp/8/8/Pp6/6PP/1PPPPP2/RNBQKBNR b KQkq a3 0 1",
+        encode_move(C7, C6, p, p, 0, 0, 0, 0),
+        "rnbqkbnr/p2ppppp/2p5/8/Pp6/6PP/1PPPPP2/RNBQKBNR w KQkq - 0 1");
 }
+
+TEST(MakeMove, MoveCastleKingSide) {
+    move_test("rnbqkbnr/3ppppp/ppp5/8/8/4PN2/PPPPBPPP/RNBQK2R w KQkq - 0 1",
+        encode_move(E1, G1, K, p, 0, 0, 0, 1),
+        "rnbqkbnr/3ppppp/ppp5/8/8/4PN2/PPPPBPPP/RNBQ1RK1 b kq - 0 1");
+}
+
+TEST(MakeMove, MoveCastleQueenSide) {
+    move_test("rnbqkbnr/3ppppp/ppp5/8/8/2NPB3/PPPQPPPP/R3KBNR w KQkq - 0 1",
+        encode_move(E1, C1, K, p, 0, 0, 0, 1),
+        "rnbqkbnr/3ppppp/ppp5/8/8/2NPB3/PPPQPPPP/2KR1BNR b kq - 0 1");
+}
+
+TEST(MakeMove, MoveCastleBlackKingSide) {
+    move_test("rnbqk2r/ppppbppp/4pn2/8/8/PPPP4/4PPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(E8, G8, k, p, 0, 0, 0, 1),
+        "rnbq1rk1/ppppbppp/4pn2/8/8/PPPP4/4PPPP/RNBQKBNR w KQ - 0 1");
+}
+
+TEST(MakeMove, MoveCastleBlackQueenSide) {
+    move_test("r3kbnr/ppp1pppp/2nqb3/3p4/8/PPPP4/4PPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(E8, C8, k, p, 0, 0, 0, 1),
+        "2kr1bnr/ppp1pppp/2nqb3/3p4/8/PPPP4/4PPPP/RNBQKBNR w KQ - 0 1");
+}
+
+TEST(MakeMove, MoveWhitePromotionQueen) {
+    move_test("rnbqkb1r/ppppppPp/5n2/8/8/8/PPPPPPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(G7, G8, P, Q, 0, 0, 0, 0),
+        "rnbqkbQr/pppppp1p/5n2/8/8/8/PPPPPPP1/RNBQKBNR b KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveWhitePromotionRook) {
+    move_test("rnbqkb1r/ppppppPp/5n2/8/8/8/PPPPPPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(G7, G8, P, R, 0, 0, 0, 0),
+        "rnbqkbRr/pppppp1p/5n2/8/8/8/PPPPPPP1/RNBQKBNR b KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveWhitePromotionBishop) {
+    move_test("rnbqkb1r/ppppppPp/5n2/8/8/8/PPPPPPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(G7, G8, P, B, 0, 0, 0, 0),
+        "rnbqkbBr/pppppp1p/5n2/8/8/8/PPPPPPP1/RNBQKBNR b KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveWhitePromotionKnight) {
+    move_test("rnbqkb1r/ppppppPp/5n2/8/8/8/PPPPPPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(G7, G8, P, N, 0, 0, 0, 0),
+        "rnbqkbNr/pppppp1p/5n2/8/8/8/PPPPPPP1/RNBQKBNR b KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveBlackPromotionQueen) {
+    move_test("rnbqkbnr/1ppppppp/8/8/8/2NPPP2/PpP3PP/R1BQKBNR b KQkq - 0 1",
+        encode_move(B2, B1, p, q, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/8/8/8/2NPPP2/P1P3PP/RqBQKBNR w KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveBlackPromotionRook) {
+    move_test("rnbqkbnr/1ppppppp/8/8/8/2NPPP2/PpP3PP/R1BQKBNR b KQkq - 0 1",
+        encode_move(B2, B1, p, r, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/8/8/8/2NPPP2/P1P3PP/RrBQKBNR w KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveBlackPromotionBishop) {
+    move_test("rnbqkbnr/1ppppppp/8/8/8/2NPPP2/PpP3PP/R1BQKBNR b KQkq - 0 1",
+        encode_move(B2, B1, p, b, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/8/8/8/2NPPP2/P1P3PP/RbBQKBNR w KQkq - 0 1");
+}
+
+TEST(MakeMove, MoveBlackPromotionKnight) {
+    move_test("rnbqkbnr/1ppppppp/8/8/8/2NPPP2/PpP3PP/R1BQKBNR b KQkq - 0 1",
+        encode_move(B2, B1, p, n, 0, 0, 0, 0),
+        "rnbqkbnr/1ppppppp/8/8/8/2NPPP2/P1P3PP/RnBQKBNR w KQkq - 0 1");
+}
+
+
+
 
 
 
@@ -672,7 +722,7 @@ TEST(MoveOrdering, Sorting) {
     const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";
 
     Board board = Board(many_attacks);
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     generate_moves(board, move_list);
     sort_moves(board, move_list);
 
@@ -733,7 +783,7 @@ TEST(MoveOrdering, Sorting) {
         {E6, D8, n, p, 0, 0, 0, 0},
     };
 
-    std::vector<int> expected;
+    std::vector<Move> expected;
     for (auto um: expected_arrays) {
         expected.push_back(call_encode(um));
     }
@@ -748,7 +798,7 @@ TEST(MoveOrdering, Sorting) {
 
 int main(int argc, char **argv) {
 
-    // std::vector<int> expected = {27428, 5270244, 684023, 618487, 552951, 487415, 45584, 45648, 46160, 46608, 46672};
+    // std::vector<Move> expected = {27428, 5270244, 684023, 618487, 552951, 487415, 45584, 45648, 46160, 46608, 46672};
     
     // for (int move: expected) {
     //     print_move_as_array(move);

@@ -6,11 +6,11 @@
 void EngineWorker::calculateMove(Game state, int depth) {
     long long start = current_time_us();
 
-    int move = state.S.negamax(state.board, depth);
+    Move move = state.S.negamax(state.board, depth);
     //move = S.pv[0];
     long long duration = current_time_us() - start;
 
-    print_move(move);
+    move.print_move();
 
     printf("\n\nTime: %lld ms\n", duration / 1000);
     printf("Time: %lld s\n", duration / 1000000);

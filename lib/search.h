@@ -19,22 +19,22 @@ long long current_time_us();
 class Searcher {
     public:
 
-    std::array<int, PV_SIZE> pv = {};
+    std::array<Move, PV_SIZE> pv = {};
     long long nodes = 0;
     int ply = -1;
 
-    std::array<std::array<int, MAX_PLY>, 2> killer_moves = {};
+    std::array<std::array<Move, MAX_PLY>, 2> killer_moves = {};
     std::array<std::array<short, 64>, 12> history_moves = {};
 
     bool follow_pv = false;
     bool null_moved = false;
 
-    int score_move(const Board &board, int move);
-    void sort_moves(const Board &board, std::vector<int> &move_list);
+    int score_move(const Board &board, Move move);
+    void sort_moves(const Board &board, std::vector<Move> &move_list);
 
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);
-    int negamax(Board &board, int depth);
+    Move negamax(Board &board, int depth);
 };
 
 

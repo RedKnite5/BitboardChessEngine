@@ -26,11 +26,11 @@ long driver(Board &board, int depth) {
     }
     long nodes = 0;
 
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
 
-    for (int move : move_list) {
+    for (Move move : move_list) {
         Board new_board = board;
         bool king_safe = make_move(new_board, move);
         if (!king_safe) {
@@ -117,15 +117,15 @@ void perft_correctness() {
 }
 
 
-void sort_moves(const Board &board, std::vector<int> &move_list);
+void sort_moves(const Board &board, std::vector<Move> &move_list);
 
 
-int Searcher::score_move(const Board &board, int move) {
+int Searcher::score_move(const Board &board, Move move) {
     if (follow_pv && pv[ply] == move) {
         return 100000;
     }
 
-    if (get_capture_flag(move)) {
+    if (move.get_capture_flag()) {
         return mvv_lva(board, move);
     } else {
         if (killer_moves[0][ply] == move) {
@@ -133,15 +133,15 @@ int Searcher::score_move(const Board &board, int move) {
         } else if (killer_moves[1][ply] == move) {
             return 32 * MOVE_SORTING_SCALE;
         } else {
-            return history_moves[get_move_piece(move)][get_move_target(move)];
+            return history_moves[move.get_move_piece()][move.get_move_target()];
         }
     }
 
     return 0;
 }
 
-void Searcher::sort_moves(const Board &board, std::vector<int> &move_list) {
-    std::ranges::sort(move_list, {}, [this, &board](int move){ return -score_move(board, move); });
+void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) {
+    std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
 }
 
 
@@ -160,7 +160,7 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
         alpha = eval_score;
     }
 
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
     sort_moves(board, move_list);
@@ -168,7 +168,7 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
         follow_pv = false;
     }
 
-    for (int move : move_list) {
+    for (Move move : move_list) {
         Board new_board = board;
         bool king_safe = make_move(new_board, move);
         if (!king_safe) {
@@ -218,7 +218,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     }
     null_moved = false;
 
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
     sort_moves(board, move_list);
@@ -232,7 +232,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
     int moves_searched = -1;
 
-    for (int move : move_list) {
+    for (Move move : move_list) {
         Board new_board = board;
         bool king_safe = make_move(new_board, move);
         if (!king_safe) {
@@ -252,8 +252,8 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
             // should also look for check and maybe some other stuff
             bool okay_to_reduce = moves_searched > full_depth_moves
                 && depth > reduction_limit
-                && !get_capture_flag(move)
-                && !get_promotion(move)
+                && !move.get_capture_flag()
+                && !move.get_promotion()
                 && move != killer_moves[0][ply]
                 && move != killer_moves[1][ply];
             if (okay_to_reduce) {
@@ -273,7 +273,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         if (score >= beta) {
             // fail high
 
-            if (!get_capture_flag(move)) {
+            if (!move.get_capture_flag()) {
                 killer_moves[1][ply] = killer_moves[0][ply];
                 killer_moves[0][ply] = move;
             }
@@ -284,9 +284,9 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
         if (score > alpha) {
 
-            if (!get_capture_flag(move)) {
-                int piece = get_move_piece(move);
-                int target = get_move_target(move);
+            if (!move.get_capture_flag()) {
+                int piece = move.get_move_piece();
+                int target = move.get_move_target();
                 history_moves[piece][target] += depth;
             }
 
@@ -320,7 +320,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     return alpha;
 }
 
-int Searcher::negamax(Board &board, int depth) {
+Move Searcher::negamax(Board &board, int depth) {
     nodes = 0;
 
     int alpha = MIN_SCORE;
@@ -377,13 +377,13 @@ Game::Game(const char *fen) {
 }
 
 
-void print_pv(const std::array<int, PV_SIZE> &pv) {
+void print_pv(const std::array<Move, PV_SIZE> &pv) {
     printf("Principal Variation\n");
     for (unsigned int i=0; i<MAX_PLY; i++) {
-        if (pv[i] == 0) {
+        if (pv[i] == Move(0)) {
             break;
         }
-        print_move(pv[i]);
+        pv[i].print_move();
     }
 }
 
@@ -400,10 +400,8 @@ void play(const char *fen, int moves, int depth) {
             mult = 1;
         }
 
-
-
         long long start = current_time_us();
-        int move = S.negamax(board, depth);
+        Move move = S.negamax(board, depth);
         //move = S.pv[0];
         long long duration = current_time_us() - start;
 
@@ -412,7 +410,7 @@ void play(const char *fen, int moves, int depth) {
 
         if (move) {
             printf("move:\n");
-            print_move(move);
+            move.print_move();
             make_move(board, move);
             printBoard(board);
             int score = -evaluate(board);

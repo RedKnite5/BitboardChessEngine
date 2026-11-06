@@ -20,21 +20,6 @@
 template <typename T>
 using Array8x8 = std::array<std::array<T, 8>, 8>;
 
-enum Piece {
-    BlackPawn,    // 0
-    BlackKnight,  // 1
-    BlackBishop,  // 2
-    BlackRook,    // 3
-    BlackQueen,   // 4
-    BlackKing,    // 5
-    WhitePawn,    // 6
-    WhiteKnight,  // 7
-    WhiteBishop,  // 8
-    WhiteRook,    // 9
-    WhiteQueen,   // 10
-    WhiteKing     // 11
-};
-
 constexpr std::array<std::string_view, 12> PieceImages = {
     "BlackPawn",
     "BlackKnight",
@@ -50,7 +35,7 @@ constexpr std::array<std::string_view, 12> PieceImages = {
     "WhiteKing"
 };
 
-const int pieceSize = 50;
+constexpr int pieceSize = 50;
 
 constexpr int get_lsb_index(unsigned long long x) {
     return __builtin_ctzll(x);
@@ -89,9 +74,9 @@ void updatePieceImages(const std::array<int, 64> &board, std::array<DraggableLab
 }
 
 
-void MainWindow::enpassant(int move) {
-    int enpassant = get_enpassant_flag(move);
-    int dest = get_move_target(move);
+void MainWindow::enpassant(Move move) {
+    int enpassant = move.get_enpassant_flag();
+    int dest = move.get_move_target();
     const int StartOfRank6 = A6;  // 40
     if (enpassant != 0) {
         int taken_pawn;
@@ -110,13 +95,13 @@ void castle_move_rook(std::array<DraggableLabel*, 64> squares, int from, int to)
     squares[from]->setPixmap(QPixmap());
 }
 
-void MainWindow::castle(int move) {
-    int castle = get_castle_flag(move);
+void MainWindow::castle(Move move) {
+    int castle = move.get_castle_flag();
     if (!castle) {
         return;
     }
 
-    int dest = get_move_target(move);
+    int dest = move.get_move_target();
     switch (dest) {
         case C1:
             // A1 to D1
@@ -160,13 +145,13 @@ void MainWindow::highlight(int square) {
     highlighted |= 1ULL << square;
 }
 
-void MainWindow::engineTurn(int move) {
-    print_move(move);
+void MainWindow::engineTurn(Move move) {
+    move.print_move();
     // need to test stalemate detenction more 5/11/26
 
     bool king_safe = make_move(game.board, move);
 
-    if (move == 0) {
+    if (move == Move(0)) {
         king_safe = 0;
     }
 
@@ -179,8 +164,8 @@ void MainWindow::engineTurn(int move) {
         DDState->enabled = false;
     }
 
-    int source = get_move_source(move);
-    int dest = get_move_target(move);
+    int source = move.get_move_source();
+    int dest = move.get_move_target();
 
     DraggableLabel *sourceSquare = squares[source];
     DraggableLabel *destSquare = squares[dest];
@@ -194,7 +179,7 @@ void MainWindow::engineTurn(int move) {
         printf("source: %d is empty\n", source);
     }
 
-    int prom_piece = get_promotion(move);
+    int prom_piece = move.get_promotion();
     if (prom_piece) {
         setPieceImage(prom_piece, destSquare);
     }
@@ -208,7 +193,7 @@ void MainWindow::engineTurn(int move) {
     
     Board b = game.board;
     Searcher S;
-    int pot_user_move = S.negamax(b, 1);
+    Move pot_user_move = S.negamax(b, 1);
     bool user_has_legal_moves = make_move(b, pot_user_move);
     if (!user_has_legal_moves) {
         if (is_king_exposed(game.board, player_color)) {
@@ -222,16 +207,16 @@ void MainWindow::engineTurn(int move) {
 
 
 
-int findUserMove(int userSource, int userDest, const std::vector<int> &move_list) {
+Move findUserMove(int userSource, int userDest, const std::vector<Move> &move_list) {
     for (auto move : move_list) {
-        int source_sq = get_move_source(move);
-        int target_sq = get_move_target(move);
+        int source_sq = move.get_move_source();
+        int target_sq = move.get_move_target();
 
         if (source_sq == userSource && userDest == target_sq) {
             return move;
         }
     }
-    return 0;
+    return Move(0);
 }
 
 
@@ -246,9 +231,9 @@ void MainWindow::makePopup(DraggableLabel *dest, std::function<void(int)> callba
     }
 
     int pieces[] = {
-        BlackKnight + color,
-        BlackBishop + color,
-        BlackQueen + color
+        n + color,
+        b + color,
+        q + color
     };
 
     for (int i=0; i<3; i++) {
@@ -271,14 +256,14 @@ void MainWindow::makePopup(DraggableLabel *dest, std::function<void(int)> callba
 }
 
 void MainWindow::getPlayerMove(GuiMove guimove) {
-    std::vector<int> move_list;
+    std::vector<Move> move_list;
     generate_moves(game.board, move_list);
 
     int userSource = guimove.source->row * 8 + guimove.source->col;
     int userDest = guimove.dest->row * 8 + guimove.dest->col;
-    int userMove = findUserMove(userSource, userDest, move_list);
+    Move userMove = findUserMove(userSource, userDest, move_list);
 
-    if(get_promotion(userMove)) {
+    if(userMove.get_promotion()) {
         // promotion popup
         makePopup(
             guimove.dest,
@@ -292,11 +277,11 @@ void MainWindow::getPlayerMove(GuiMove guimove) {
 }
 
 
-void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
+void MainWindow::playerMove(Move move, int promotion, GuiMove guimove) {
     const int promotion_mask = ~0xF0000;
     constexpr int PROMOTION_SHIFT = 16;
 
-    int prom_move = (move & promotion_mask) | (promotion << PROMOTION_SHIFT);
+    Move prom_move = Move((move.m & promotion_mask) | (promotion << PROMOTION_SHIFT));
     
     if (prom_move) {
         // user move is psuedolegal!
@@ -316,8 +301,8 @@ void MainWindow::playerMove(int move, int promotion, GuiMove guimove) {
             castle(move);
 
             clearHighlights();
-            highlight(get_move_source(move));
-            highlight(get_move_target(move));
+            highlight(move.get_move_source());
+            highlight(move.get_move_target());
 
             RequestEngineMove(game, depth);
             return;
@@ -394,9 +379,9 @@ std::array<DraggableLabel*, 64> MainWindow::setupChessboard(QWidget *parent) {
 }
 
 void setPieceOnSquare(int i, std::array<int, 64> &board, Board &bitboard) {
-    for (int p=0; p<12; ++p) {
-        if (bitboard.bitboards[p] & (1ULL << i)) {
-            board[i] = p;
+    for (Piece piece=p; piece<=K; ++piece) {
+        if (bitboard.bitboards[piece] & (1ULL << i)) {
+            board[i] = piece;
             return;
         }
     }

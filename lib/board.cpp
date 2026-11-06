@@ -546,7 +546,7 @@ constexpr std::array<char, 64> castling_rights = {
 };
 
 
-constexpr int piece_select(Pieces piece, bool side) {
+constexpr Piece piece_select(Piece piece, bool side) {
     return piece + 6*side;
 }
 
@@ -561,7 +561,7 @@ Moves
 0100 0000 0000 0000 0000 0000 Enpassant flag
 1000 0000 0000 0000 0000 0000 Castle flag
 */
-constexpr int encode_move(int source,
+constexpr Move encode_move(int source,
                 int target,
                 int piece,
                 int promotion,
@@ -569,32 +569,32 @@ constexpr int encode_move(int source,
                 int double_push,
                 int enpassant,
                 int castle) {
-    return source
+    return Move(source
             | (target << TARGET_SHIFT)
             | (piece << PIECE_SHIFT)
             | (promotion << PROMOTION_SHIFT)
             | (capture << CAPTURE_SHIFT)
             | (double_push << DOUBLE_SHIFT)
             | (enpassant << ENPASSANT_SHIFT)
-            | (castle << CASTLE_SHIFT);
+            | (castle << CASTLE_SHIFT));
 }
 
 
 
 
-void print_move(int move) {
-    printf("%s\n", format_move(move).c_str());
+void Move::print_move() const {
+    printf("%s\n", format().c_str());
 }
 
-std::string format_move(int move) {
+std::string Move::format() const {
     return std::format("{}{}{}",
-        ascii_pieces[get_move_piece(move)],
-        square_coords[get_move_source(move)],
-        square_coords[get_move_target(move)]
+        ascii_pieces[get_move_piece()],
+        square_coords[get_move_source()],
+        square_coords[get_move_target()]
     );
 }
 
-void print_move_list(std::vector<int> &move_list) {
+void print_move_list(std::vector<Move> &move_list) {
     printf("Move List:\n{");
     for (unsigned int i=0; i < move_list.size(); i++) {
         printf("%d, ", move_list[i]);
@@ -602,16 +602,16 @@ void print_move_list(std::vector<int> &move_list) {
     printf("}\n");
 
     for (unsigned int i=0; i < move_list.size(); i++) {
-        int move = move_list[i];
+        Move move = move_list[i];
         printf("%c%s%s Promotion: %c Capture: %d Double Push: %d Enpassant: %d Castle: %d\n",
-            ascii_pieces[get_move_piece(move)],
-            square_coords[get_move_source(move)],
-            square_coords[get_move_target(move)],
-            ascii_pieces[get_promotion(move)],
-            get_capture_flag(move) >> CAPTURE_SHIFT,
-            get_double_push_flag(move) >> DOUBLE_SHIFT,
-            get_enpassant_flag(move) >> ENPASSANT_SHIFT,
-            get_castle_flag(move) >> CASTLE_SHIFT
+            ascii_pieces[move.get_move_piece()],
+            square_coords[move.get_move_source()],
+            square_coords[move.get_move_target()],
+            ascii_pieces[move.get_promotion()],
+            move.get_capture_flag() >> CAPTURE_SHIFT,
+            move.get_double_push_flag() >> DOUBLE_SHIFT,
+            move.get_enpassant_flag() >> ENPASSANT_SHIFT,
+            move.get_castle_flag() >> CASTLE_SHIFT
         );
     }
 }
@@ -872,7 +872,7 @@ constexpr int three_rows = 24;
 U64 Board::zHash() {
     U64 hash = castle_keys[this->castleFlags];
 
-    for (int piece=0; piece<12; piece++) {
+    for (Piece piece=p; piece <= K; ++piece) {
         U64 bb = this->bitboards[piece];
         while (bb) {
             int index = get_lsb_index_safe(bb);
@@ -1075,7 +1075,7 @@ inline bool is_square_attacked(const Board &board, unsigned char square, bool si
 }
 
 
-void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_pawn_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 p_bb = board.bitboards[P];
     int source_sq, target_sq, cur_move;
     while (p_bb) {
@@ -1097,13 +1097,13 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
             if (not_promoting) {
                 //                               Enpassant FLag
                 int enpassant_flag = (board.enPassantSquare == target_sq) << ENPASSANT_SHIFT;
-                move_list.push_back(cur_move | enpassant_flag);
+                move_list.push_back(Move(cur_move | enpassant_flag));
             } else {
                 //                               Promotion
-                move_list.push_back(cur_move | (Q << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (B << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (N << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (R << PROMOTION_SHIFT));
+                move_list.push_back(Move(cur_move | (Q << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (B << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (N << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (R << PROMOTION_SHIFT)));
             }
 
             attacks ^= 1ULL << target_sq;
@@ -1117,13 +1117,13 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
             if (not_promoting) {
                 //                      Double Pawn FLag
                 cur_move |= ((target_sq == source_sq + 16) << DOUBLE_SHIFT);
-                move_list.push_back(cur_move);
+                move_list.push_back(Move(cur_move));
             } else {
                 //                               Promotion
-                move_list.push_back(cur_move | (Q << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (B << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (N << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (R << PROMOTION_SHIFT));
+                move_list.push_back(Move(cur_move | (Q << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (B << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (N << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (R << PROMOTION_SHIFT)));
             }
 
             pushes ^= (1ULL << target_sq);
@@ -1134,7 +1134,7 @@ void generate_pawn_moves_white(const Board &board, std::vector<int> &move_list) 
     }
 }
 
-void generate_pawn_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_pawn_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 p_bb = board.bitboards[p];
     int source_sq, target_sq, cur_move;
     while (p_bb) {
@@ -1153,13 +1153,13 @@ void generate_pawn_moves_black(const Board &board, std::vector<int> &move_list) 
             if (not_promoting) {
                 //                      Double Pawn FLag
                 cur_move |= ((target_sq == source_sq - 16) << DOUBLE_SHIFT);
-                move_list.push_back(cur_move);
+                move_list.push_back(Move(cur_move));
             } else {
                 //                               Promotion
-                move_list.push_back(cur_move | (q << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (b << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (n << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (r << PROMOTION_SHIFT));
+                move_list.push_back(Move(cur_move | (q << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (b << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (n << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (r << PROMOTION_SHIFT)));
             }
 
             pushes ^= (1ULL << target_sq);
@@ -1174,13 +1174,13 @@ void generate_pawn_moves_black(const Board &board, std::vector<int> &move_list) 
             if (not_promoting) {
                 //                               Enpassant FLag
                 int enpassant_flag = (board.enPassantSquare == target_sq) << ENPASSANT_SHIFT;
-                move_list.push_back(cur_move | enpassant_flag);
+                move_list.push_back(Move(cur_move | enpassant_flag));
             } else {
                 //                               Promotion
-                move_list.push_back(cur_move | (q << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (b << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (n << PROMOTION_SHIFT));
-                move_list.push_back(cur_move | (r << PROMOTION_SHIFT));
+                move_list.push_back(Move(cur_move | (q << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (b << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (n << PROMOTION_SHIFT)));
+                move_list.push_back(Move(cur_move | (r << PROMOTION_SHIFT)));
             }
 
             attacks ^= 1ULL << target_sq;
@@ -1190,7 +1190,7 @@ void generate_pawn_moves_black(const Board &board, std::vector<int> &move_list) 
     }
 }
 
-void generate_knight_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_knight_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 kn_bb = board.bitboards[N];
     while (kn_bb) {
         int source_sq = get_lsb_index(kn_bb);
@@ -1201,7 +1201,7 @@ void generate_knight_moves_white(const Board &board, std::vector<int> &move_list
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, N, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, N, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1210,7 +1210,7 @@ void generate_knight_moves_white(const Board &board, std::vector<int> &move_list
     }
 }
 
-void generate_knight_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_knight_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 kn_bb = board.bitboards[n];
     while (kn_bb) {
         int source_sq = get_lsb_index(kn_bb);
@@ -1221,7 +1221,7 @@ void generate_knight_moves_black(const Board &board, std::vector<int> &move_list
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, n, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, n, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1230,7 +1230,7 @@ void generate_knight_moves_black(const Board &board, std::vector<int> &move_list
     }
 }
 
-void generate_bishop_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_bishop_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 b_bb = board.bitboards[B];
     while (b_bb) {
         int source_sq = get_lsb_index(b_bb);
@@ -1242,7 +1242,7 @@ void generate_bishop_moves_white(const Board &board, std::vector<int> &move_list
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, B, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, B, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1251,7 +1251,7 @@ void generate_bishop_moves_white(const Board &board, std::vector<int> &move_list
     }
 }
 
-void generate_bishop_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_bishop_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 b_bb = board.bitboards[b];
     while (b_bb) {
         int source_sq = get_lsb_index(b_bb);
@@ -1263,7 +1263,7 @@ void generate_bishop_moves_black(const Board &board, std::vector<int> &move_list
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, b, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, b, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1272,7 +1272,7 @@ void generate_bishop_moves_black(const Board &board, std::vector<int> &move_list
     }
 }
 
-void generate_rook_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_rook_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 r_bb = board.bitboards[R];
     while (r_bb) {
         int source_sq = get_lsb_index(r_bb);
@@ -1284,7 +1284,7 @@ void generate_rook_moves_white(const Board &board, std::vector<int> &move_list) 
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, R, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, R, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1293,7 +1293,7 @@ void generate_rook_moves_white(const Board &board, std::vector<int> &move_list) 
     }
 }
 
-void generate_rook_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_rook_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 r_bb = board.bitboards[r];
     while (r_bb) {
         int source_sq = get_lsb_index(r_bb);
@@ -1305,7 +1305,7 @@ void generate_rook_moves_black(const Board &board, std::vector<int> &move_list) 
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, r, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, r, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1314,7 +1314,7 @@ void generate_rook_moves_black(const Board &board, std::vector<int> &move_list) 
     }
 }
 
-void generate_queen_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_queen_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 q_bb = board.bitboards[Q];
     while (q_bb) {
         int source_sq = get_lsb_index(q_bb);
@@ -1327,7 +1327,7 @@ void generate_queen_moves_white(const Board &board, std::vector<int> &move_list)
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, Q, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, Q, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1336,7 +1336,7 @@ void generate_queen_moves_white(const Board &board, std::vector<int> &move_list)
     }
 }
 
-void generate_queen_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_queen_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 q_bb = board.bitboards[q];
     while (q_bb) {
         int source_sq = get_lsb_index(q_bb);
@@ -1349,7 +1349,7 @@ void generate_queen_moves_black(const Board &board, std::vector<int> &move_list)
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-            int move = encode_move(source_sq, target_sq, q, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, q, 0, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1358,7 +1358,7 @@ void generate_queen_moves_black(const Board &board, std::vector<int> &move_list)
     }
 }
 
-void generate_king_moves_white(const Board &board, std::vector<int> &move_list) {
+void generate_king_moves_white(const Board &board, std::vector<Move> &move_list) {
     U64 k_bb = board.bitboards[K];
     int source_sq = get_lsb_index_safe(k_bb);  // undefined behavior if no king on board
 
@@ -1369,7 +1369,7 @@ void generate_king_moves_white(const Board &board, std::vector<int> &move_list) 
         int target_sq = get_lsb_index(attacks);
 
         bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-        int move = encode_move(source_sq, target_sq, K, 0, capture_flag, 0, 0, 0);
+        Move move = encode_move(source_sq, target_sq, K, 0, capture_flag, 0, 0, 0);
         move_list.push_back(move);
 
         attacks ^= 1ULL << target_sq;
@@ -1399,7 +1399,7 @@ void generate_king_moves_white(const Board &board, std::vector<int> &move_list) 
     }
 }
 
-void generate_king_moves_black(const Board &board, std::vector<int> &move_list) {
+void generate_king_moves_black(const Board &board, std::vector<Move> &move_list) {
     U64 k_bb = board.bitboards[k];
     int source_sq = get_lsb_index_safe(k_bb);  // undefined behavior if no king on board
 
@@ -1410,7 +1410,7 @@ void generate_king_moves_black(const Board &board, std::vector<int> &move_list) 
         int target_sq = get_lsb_index(attacks);
 
         bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-        int move = encode_move(source_sq, target_sq, k, 0, capture_flag, 0, 0, 0);
+        Move move = encode_move(source_sq, target_sq, k, 0, capture_flag, 0, 0, 0);
         move_list.push_back(move);
 
         attacks ^= 1ULL << target_sq;
@@ -1449,19 +1449,19 @@ bool is_king_exposed(const Board &bd, bool side) {
 }
 
 
-void order_capture_first(std::vector<int> &move_list) {
+void order_capture_first(std::vector<Move> &move_list) {
     std::partition(
         move_list.begin(),
         move_list.end(),
-        [](int move) { return move & CAPTURE_FLAG; }
+        [](Move move) { return move.get_capture_flag(); }
     );
 }
 
-int mvv_lva(const Board &board, int move) {
+int mvv_lva(const Board &board, Move move) {
     // enpassant?
     const auto bits = board.bitboards;
-    int attacker = get_move_piece(move);
-    int target_sq = get_move_target(move);
+    int attacker = move.get_move_piece();
+    int target_sq = move.get_move_target();
 
     const unsigned int start = attacker < 6 ? 6 : 0;
 
@@ -1477,7 +1477,7 @@ int mvv_lva(const Board &board, int move) {
 }
 
 
-void generate_moves(const Board &board, std::vector<int> &move_list) {
+void generate_moves(const Board &board, std::vector<Move> &move_list) {
     move_list.clear();
 
     if (board.turn) {
@@ -1498,7 +1498,7 @@ void generate_moves(const Board &board, std::vector<int> &move_list) {
 }
 
 // inefficient
-void generate_legal_moves(const Board &board, std::vector<int> &move_list) {
+void generate_legal_moves(const Board &board, std::vector<Move> &move_list) {
     generate_moves(board, move_list);
     unsigned int i = 0;
     while (i < move_list.size()) {
@@ -1513,28 +1513,28 @@ void generate_legal_moves(const Board &board, std::vector<int> &move_list) {
     }
 }
 
-void generate_capture_moves(const Board &board, std::vector<int> &move_list) {
+void generate_capture_moves(const Board &board, std::vector<Move> &move_list) {
     generate_moves(board, move_list);
 
     // remove all non capture moves
     auto iterator = std::find_if(
         move_list.begin(),
         move_list.end(),
-        [](int move) { return !(move & CAPTURE_FLAG); }
+        [](Move move) { return !move.get_capture_flag(); }
     );
     move_list.erase(iterator, move_list.end());
 }
 
 
-bool make_move(Board &board, int move) {
-    int source_sq = get_move_source(move);
-    int target_sq = get_move_target(move);
-    int piece = get_move_piece(move);
-    int promotion = get_promotion(move);
-    bool capture = get_capture_flag(move);
-    bool double_shift = get_double_push_flag(move);
-    bool enpassant = get_enpassant_flag(move);
-    bool castle = get_castle_flag(move);
+bool make_move(Board &board, Move move) {
+    int source_sq = move.get_move_source();
+    int target_sq = move.get_move_target();
+    int piece = move.get_move_piece();
+    int promotion = move.get_promotion();
+    bool capture = move.get_capture_flag();
+    bool double_shift = move.get_double_push_flag();
+    bool enpassant = move.get_enpassant_flag();
+    bool castle = move.get_castle_flag();
 
     bool side = board.turn;
 
@@ -1550,11 +1550,11 @@ bool make_move(Board &board, int move) {
 
     if (capture) {
         // clear captured piece
-        int start = piece_select(p, !side);
+        Piece start = piece_select(p, !side);
 
         U64 target = 1ULL << target_sq;
         U64 mask = ~target;
-        for (int i=start; i < start+6; i++) {
+        for (Piece i=start; i < start+6; ++i) {
             if (board.bitboards[i] & target) {
                 board.hash_key ^= piece_keys[i][target_sq];
                 board.bitboards[i] &= mask;
@@ -1572,7 +1572,7 @@ bool make_move(Board &board, int move) {
     }
 
     if (promotion) {
-        int pawn_color = piece_select(p, side);
+        Piece pawn_color = piece_select(p, side);
         board.bitboards[pawn_color] ^= 1ULL << target_sq;
         board.bitboards[promotion] ^= 1ULL << target_sq;
         board.hash_key ^= piece_keys[pawn_color][target_sq] ^ piece_keys[promotion][target_sq];
@@ -1600,8 +1600,10 @@ bool make_move(Board &board, int move) {
     }
 
     if (enpassant) {
-        board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
-        board.hash_key ^= piece_keys[piece_select(p, !side)][target_sq + 8 - side*two_rows];
+        Piece opp_piece = piece_select(p, !side);
+        int taken_sq = target_sq + 8 - side*two_rows;
+        board.bitboards[opp_piece] ^= 1ULL << (taken_sq);
+        board.hash_key ^= piece_keys[opp_piece][taken_sq];
     }
 
     bool king_danger_illegal = 0;
@@ -1610,24 +1612,28 @@ bool make_move(Board &board, int move) {
         switch (target_sq) {
         case C1:
             board.bitboards[R] ^= 1ULL | (1ULL << D1);
+            board.hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
 
             king_danger_illegal = is_square_attacked(board, D1, BLACK)
                                 || is_square_attacked(board, E1, BLACK);
             break;
         case G1:
             board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            board.hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
 
             king_danger_illegal = is_square_attacked(board, F1, BLACK)
                                 || is_square_attacked(board, E1, BLACK);
             break;
         case C8:
             board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            board.hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
 
             king_danger_illegal = is_square_attacked(board, D8, WHITE)
                                 || is_square_attacked(board, E8, WHITE);
             break;
         case G8:
             board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            board.hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
 
             king_danger_illegal = is_square_attacked(board, F8, WHITE)
                                 || is_square_attacked(board, E8, WHITE);
@@ -1667,15 +1673,15 @@ bool make_move(Board &board, int move) {
 
 
 
-void unmake_move(Board &board, int move) {
-    int source_sq = get_move_source(move);
-    int target_sq = get_move_target(move);
-    int piece = get_move_piece(move);
-    int promotion = get_promotion(move);
-    bool capture = get_capture_flag(move);
-    bool double_shift = get_double_push_flag(move);
-    bool enpassant = get_enpassant_flag(move);
-    bool castle = get_castle_flag(move);
+void unmake_move(Board &board, Move move) {
+    int source_sq = move.get_move_source();
+    int target_sq = move.get_move_target();
+    int piece = move.get_move_piece();
+    int promotion = move.get_promotion();
+    bool capture = move.get_capture_flag();
+    bool double_shift = move.get_double_push_flag();
+    bool enpassant = move.get_enpassant_flag();
+    bool castle = move.get_castle_flag();
 
     board.turn ^= 1;
     bool side = board.turn;
@@ -1690,10 +1696,10 @@ void unmake_move(Board &board, int move) {
 
     if (capture) {
         // clear captured piece
-        int start = piece_select(p, !side);
+        Piece start = piece_select(p, !side);
 
         U64 mask = ~(1ULL << target_sq);
-        for (int i=start; i < start+6; i++) {
+        for (Piece i=start; i < start+6; ++i) {
             board.bitboards[i] &= mask;
         }
         board.castleFlags &= castling_rights[target_sq];

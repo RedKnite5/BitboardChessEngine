@@ -37,12 +37,19 @@ inline const char *square_coords[] = {
     "A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8", "NONE"
 };
 
-
-enum Pieces : uint8_t {
+enum Piece : uint8_t {
     p, n, b, r, q, k,  // Black pieces
     P, N, B, R, Q, K,  // White pieces
     Last
 };
+
+constexpr Piece operator+(Piece p, int n) {
+    return static_cast<Piece>(uint8_t(p) + n);
+}
+
+constexpr Piece& operator++(Piece &p) {
+    return p = p + 1;
+}
 
 inline const char ascii_pieces[] = "pnbrqkPNBRQK";
 inline const char *unicode_pieces[12] = {
@@ -80,47 +87,67 @@ constexpr int DOUBLE_SHIFT = 21;
 constexpr int ENPASSANT_SHIFT = 22;
 constexpr int CASTLE_SHIFT = 23;
 
-constexpr inline int get_move_source(int move) {
-    const int source_mask = 0x3F;
-    return move & source_mask;
-}
-
-constexpr inline int get_move_target(int move) {
-    const int target_mask = 0xFC0;
-    return (move & target_mask) >> TARGET_SHIFT;
-}
-
-constexpr inline int get_move_piece(int move) {
-    const int piece_mask = 0xF000;
-    return (move & piece_mask) >> PIECE_SHIFT;
-}
-
-constexpr inline int get_promotion(int move) {
-    const int promotion_mask = 0xF0000;
-    return (move & promotion_mask) >> PROMOTION_SHIFT;
-}
-
 constexpr int CAPTURE_FLAG = 0x100000;
-constexpr inline int get_capture_flag(int move) {
-    return move & CAPTURE_FLAG;
-}
 constexpr int DOUBLE_PUSH_FLAG = 0x200000;
-constexpr inline int get_double_push_flag(int move) {
-    return move & DOUBLE_PUSH_FLAG;
-}
 constexpr int ENPASSANT_FLAG = 0x400000;
-constexpr inline int get_enpassant_flag(int move) {
-    return move & ENPASSANT_FLAG;
-}
 constexpr int CASTLE_FLAG = 0x800000;
-constexpr inline int get_castle_flag(int move) {
-    return move & CASTLE_FLAG;
-}
 
-void print_move(int move);
-std::string format_move(int move);
+struct Move {
+    int m;
 
-void print_move_list(std::vector<int> &move_list);
+    constexpr int get_move_source() const {
+        const int source_mask = 0x3F;
+        return m & source_mask;
+    }
+
+    constexpr int get_move_target() const {
+        const int target_mask = 0xFC0;
+        return (m & target_mask) >> TARGET_SHIFT;
+    }
+
+    constexpr int get_move_piece() const {
+        const int piece_mask = 0xF000;
+        return (m & piece_mask) >> PIECE_SHIFT;
+    }
+
+    constexpr int get_promotion() const {
+        const int promotion_mask = 0xF0000;
+        return (m & promotion_mask) >> PROMOTION_SHIFT;
+    }
+
+    constexpr int get_capture_flag() const {
+        return m & CAPTURE_FLAG;
+    }
+
+    constexpr int get_double_push_flag() const {
+        return m & DOUBLE_PUSH_FLAG;
+    }
+
+    constexpr int get_enpassant_flag() const {
+        return m & ENPASSANT_FLAG;
+    }
+
+    constexpr int get_castle_flag() const {
+        return m & CASTLE_FLAG;
+    }
+
+    void print_move() const;
+    std::string format() const;
+
+    constexpr bool operator==(const Move &rhs) const {
+        return m == rhs.m;
+    }
+
+    constexpr bool operator<(const Move &rhs) const {
+        return m < rhs.m;
+    }
+
+    operator bool() const {
+        return bool(m);
+    }
+};
+
+void print_move_list(std::vector<Move> &move_list);
 
 
 void printBitBoard_stream(uint64_t bitBoard, std::ostream& out);
@@ -139,23 +166,23 @@ inline bool is_square_attacked(const Board &board, unsigned char square, bool si
 
 bool is_king_exposed(const Board &bd, bool side);
 
-void order_capture_first(std::vector<int> &move_list);
+void order_capture_first(std::vector<Move> &move_list);
 
 
-const int MOVE_SORTING_SCALE = 128;
+constexpr int MOVE_SORTING_SCALE = 128;
 
-int mvv_lva(const Board &board, int move);
+int mvv_lva(const Board &board, Move move);
 
 //int score_move(const Board &board, int move);
 
 //void sort_moves(const Board &board, std::vector<int> &move_list);
 
-void generate_moves(const Board &board, std::vector<int> &move_list);
-void generate_capture_moves(const Board &board, std::vector<int> &move_list);
+void generate_moves(const Board &board, std::vector<Move> &move_list);
+void generate_capture_moves(const Board &board, std::vector<Move> &move_list);
 
-void generate_legal_moves(const Board &board, std::vector<int> &move_list);
+void generate_legal_moves(const Board &board, std::vector<Move> &move_list);
 
-bool make_move(Board &board, int move);
+bool make_move(Board &board, Move move);
 
 void make_null_move(Board &board);
 void unmake_null_move(Board &board);
