@@ -20,7 +20,7 @@ long driver(Board &board, int depth) {
 
     for (Move move : move_list) {
         Board new_board = board;
-        bool king_safe = make_move(new_board, move);
+        bool king_safe = new_board.make_move(move);
         if (!king_safe) {
             continue;
         }
@@ -222,7 +222,7 @@ TEST(ZHashing, HashesDistinct) {
 
             std::uniform_int_distribution<int> vec_dist(0, move_list.size()-1);
             int random_index = vec_dist(mt);
-            make_move(bd, move_list[random_index]);
+            bd.make_move(move_list[random_index]);
         }
         U64 hash = bd.zHash();
         if (map.contains(hash)) {
@@ -547,7 +547,7 @@ TEST(MoveOrdering, TestMVV_LVA_Qp) {
 
 void move_test(const char *start, Move move, const char *end) {
     Board bd = Board(start);
-    make_move(bd, move);
+    bd.make_move(move);
     Board correct_result = Board(end);
     EXPECT_EQ(bd, correct_result);
     EXPECT_EQ(bd.hash_key, correct_result.zHash());
@@ -556,7 +556,7 @@ void move_test(const char *start, Move move, const char *end) {
 TEST(MakeMove, MovePawn) {
     Board bd = Board();
     Move move = encode_move(A2, A3, P, p, 0, 0, 0, 0);
-    make_move(bd, move);
+    bd.make_move(move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1");
     EXPECT_EQ(bd, correct_result);
     EXPECT_EQ(bd.hash_key, correct_result.zHash());
@@ -571,7 +571,7 @@ TEST(MakeMove, MoveRook) {
 TEST(MakeMove, MoveKnight) {
     Board bd = Board();
     Move move = encode_move(B1, C3, N, p, 0, 0, 0, 0);
-    make_move(bd, move);
+    bd.make_move(move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR b KQkq - 0 1");
     EXPECT_EQ(bd, correct_result);
     EXPECT_EQ(bd.hash_key, correct_result.zHash());
@@ -604,7 +604,7 @@ TEST(MakeMove, MoveBlackPawn) {
 TEST(MakeMove, MoveDoublePush) {
     Board bd = Board();
     Move move = encode_move(A2, A4, P, p, 0, 1, 0, 0);
-    make_move(bd, move);
+    bd.make_move(move);
     Board correct_result = Board("rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq a3 0 1");
     EXPECT_EQ(bd, correct_result);
     EXPECT_EQ(bd.hash_key, correct_result.zHash());

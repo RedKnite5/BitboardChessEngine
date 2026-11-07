@@ -597,7 +597,7 @@ std::string Move::format() const {
 void print_move_list(std::vector<Move> &move_list) {
     printf("Move List:\n{");
     for (unsigned int i=0; i < move_list.size(); i++) {
-        printf("%d, ", move_list[i]);
+        printf("%d, ", move_list[i].m);
     }
     printf("}\n");
 
@@ -1503,7 +1503,7 @@ void generate_legal_moves(const Board &board, std::vector<Move> &move_list) {
     unsigned int i = 0;
     while (i < move_list.size()) {
         Board temp_board = board;
-        bool valid = make_move(temp_board, move_list[i]);
+        bool valid = temp_board.make_move(move_list[i]);
         if (valid) {
             i++;
         } else {
@@ -1526,7 +1526,7 @@ void generate_capture_moves(const Board &board, std::vector<Move> &move_list) {
 }
 
 
-bool make_move(Board &board, Move move) {
+bool Board::make_move(Move move) {
     int source_sq = move.get_move_source();
     int target_sq = move.get_move_target();
     int piece = move.get_move_piece();
@@ -1536,17 +1536,17 @@ bool make_move(Board &board, Move move) {
     bool enpassant = move.get_enpassant_flag();
     bool castle = move.get_castle_flag();
 
-    bool side = board.turn;
+    bool side = this->turn;
 
     // move piece on appropriate bitboard
-    board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
-    board.hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
+    this->bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
+    this->hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
 
-    board.hash_key ^= castle_keys[board.castleFlags];
-    board.castleFlags &= castling_rights[source_sq];
+    this->hash_key ^= castle_keys[this->castleFlags];
+    this->castleFlags &= castling_rights[source_sq];
 
-    board.halfMoveClock++;
-    board.move += !side;
+    this->halfMoveClock++;
+    this->move += !side;
 
     if (capture) {
         // clear captured piece
@@ -1555,55 +1555,55 @@ bool make_move(Board &board, Move move) {
         U64 target = 1ULL << target_sq;
         U64 mask = ~target;
         for (Piece i=start; i < start+6; ++i) {
-            if (board.bitboards[i] & target) {
-                board.hash_key ^= piece_keys[i][target_sq];
-                board.bitboards[i] &= mask;
+            if (this->bitboards[i] & target) {
+                this->hash_key ^= piece_keys[i][target_sq];
+                this->bitboards[i] &= mask;
                 break;
             }
         }
-        board.castleFlags &= castling_rights[target_sq];
-        board.halfMoveClock = 0;
+        this->castleFlags &= castling_rights[target_sq];
+        this->halfMoveClock = 0;
     }
 
-    board.hash_key ^= castle_keys[board.castleFlags];
+    this->hash_key ^= castle_keys[this->castleFlags];
 
     if (piece == 0 || piece == 6) {
-        board.halfMoveClock = 0;
+        this->halfMoveClock = 0;
     }
 
     if (promotion) {
         Piece pawn_color = piece_select(p, side);
-        board.bitboards[pawn_color] ^= 1ULL << target_sq;
-        board.bitboards[promotion] ^= 1ULL << target_sq;
-        board.hash_key ^= piece_keys[pawn_color][target_sq] ^ piece_keys[promotion][target_sq];
+        this->bitboards[pawn_color] ^= 1ULL << target_sq;
+        this->bitboards[promotion] ^= 1ULL << target_sq;
+        this->hash_key ^= piece_keys[pawn_color][target_sq] ^ piece_keys[promotion][target_sq];
     }
     
 
-    if (board.enPassantSquare < 64) {
-        int ep_index = board.enPassantSquare - two_rows;
+    if (this->enPassantSquare < 64) {
+        int ep_index = this->enPassantSquare - two_rows;
         if (ep_index >= halfway) {
             ep_index -= three_rows;
         }
-        board.hash_key ^= enpassant_keys[ep_index];
+        this->hash_key ^= enpassant_keys[ep_index];
     }
 
     if (double_shift) {
-        board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
+        this->enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
 
-        int ep_index = board.enPassantSquare - two_rows;
+        int ep_index = this->enPassantSquare - two_rows;
         if (ep_index > halfway) {
             ep_index -= three_rows;
         }
-        board.hash_key ^= enpassant_keys[ep_index];
+        this->hash_key ^= enpassant_keys[ep_index];
     } else {
-        board.enPassantSquare = No_Square;
+        this->enPassantSquare = No_Square;
     }
 
     if (enpassant) {
         Piece opp_piece = piece_select(p, !side);
         int taken_sq = target_sq + 8 - side*two_rows;
-        board.bitboards[opp_piece] ^= 1ULL << (taken_sq);
-        board.hash_key ^= piece_keys[opp_piece][taken_sq];
+        this->bitboards[opp_piece] ^= 1ULL << (taken_sq);
+        this->hash_key ^= piece_keys[opp_piece][taken_sq];
     }
 
     bool king_danger_illegal = 0;
@@ -1611,32 +1611,32 @@ bool make_move(Board &board, Move move) {
     if (castle) {
         switch (target_sq) {
         case C1:
-            board.bitboards[R] ^= 1ULL | (1ULL << D1);
-            board.hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
+            this->bitboards[R] ^= 1ULL | (1ULL << D1);
+            this->hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
 
-            king_danger_illegal = is_square_attacked(board, D1, BLACK)
-                                || is_square_attacked(board, E1, BLACK);
+            king_danger_illegal = is_square_attacked(*this, D1, BLACK)
+                                || is_square_attacked(*this, E1, BLACK);
             break;
         case G1:
-            board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
-            board.hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
+            this->bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            this->hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
 
-            king_danger_illegal = is_square_attacked(board, F1, BLACK)
-                                || is_square_attacked(board, E1, BLACK);
+            king_danger_illegal = is_square_attacked(*this, F1, BLACK)
+                                || is_square_attacked(*this, E1, BLACK);
             break;
         case C8:
-            board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
-            board.hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
+            this->bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            this->hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
 
-            king_danger_illegal = is_square_attacked(board, D8, WHITE)
-                                || is_square_attacked(board, E8, WHITE);
+            king_danger_illegal = is_square_attacked(*this, D8, WHITE)
+                                || is_square_attacked(*this, E8, WHITE);
             break;
         case G8:
-            board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
-            board.hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
+            this->bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            this->hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
 
-            king_danger_illegal = is_square_attacked(board, F8, WHITE)
-                                || is_square_attacked(board, E8, WHITE);
+            king_danger_illegal = is_square_attacked(*this, F8, WHITE)
+                                || is_square_attacked(*this, E8, WHITE);
             break;
         
         default:
@@ -1645,30 +1645,30 @@ bool make_move(Board &board, Move move) {
         }
     }
 
-    board.coloredPieces[BLACK] = board.bitboards[p]
-                               | board.bitboards[r]
-                               | board.bitboards[n]
-                               | board.bitboards[b]
-                               | board.bitboards[q]
-                               | board.bitboards[k];
+    this->coloredPieces[BLACK] = this->bitboards[p]
+                               | this->bitboards[r]
+                               | this->bitboards[n]
+                               | this->bitboards[b]
+                               | this->bitboards[q]
+                               | this->bitboards[k];
 
-    board.coloredPieces[WHITE] = board.bitboards[P]
-                               | board.bitboards[R]
-                               | board.bitboards[N]
-                               | board.bitboards[B]
-                               | board.bitboards[Q]
-                               | board.bitboards[K];
+    this->coloredPieces[WHITE] = this->bitboards[P]
+                               | this->bitboards[R]
+                               | this->bitboards[N]
+                               | this->bitboards[B]
+                               | this->bitboards[Q]
+                               | this->bitboards[K];
     
     
-    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
-    board.turn ^= 1;
-    board.hash_key ^= side_key;
+    this->allPieces = this->coloredPieces[BLACK] | this->coloredPieces[WHITE];
+    this->turn ^= 1;
+    this->hash_key ^= side_key;
 
     if (king_danger_illegal) {
         return false;
     }
 
-    return !is_king_exposed(board, side);
+    return !is_king_exposed(*this, side);
 }
 
 

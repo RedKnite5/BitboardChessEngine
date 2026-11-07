@@ -149,7 +149,7 @@ void MainWindow::engineTurn(Move move) {
     move.print_move();
     // need to test stalemate detenction more 5/11/26
 
-    bool king_safe = make_move(game.board, move);
+    bool king_safe = game.board.make_move(move);
 
     if (move == Move(0)) {
         king_safe = 0;
@@ -194,7 +194,7 @@ void MainWindow::engineTurn(Move move) {
     Board b = game.board;
     Searcher S;
     Move pot_user_move = S.negamax(b, 1);
-    bool user_has_legal_moves = make_move(b, pot_user_move);
+    bool user_has_legal_moves = b.make_move(pot_user_move);
     if (!user_has_legal_moves) {
         if (is_king_exposed(game.board, player_color)) {
             printf("Checkmate! I Win!\n");
@@ -287,7 +287,7 @@ void MainWindow::playerMove(Move move, int promotion, GuiMove guimove) {
         // user move is psuedolegal!
 
         Board new_board = game.board;
-        bool king_safe = make_move(new_board, prom_move);
+        bool king_safe = new_board.make_move(prom_move);
         if (king_safe) {
             // user move is legal!
 

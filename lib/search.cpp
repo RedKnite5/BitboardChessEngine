@@ -32,7 +32,7 @@ long driver(Board &board, int depth) {
 
     for (Move move : move_list) {
         Board new_board = board;
-        bool king_safe = make_move(new_board, move);
+        bool king_safe = new_board.make_move(move);
         if (!king_safe) {
             continue;
         }
@@ -170,7 +170,7 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
 
     for (Move move : move_list) {
         Board new_board = board;
-        bool king_safe = make_move(new_board, move);
+        bool king_safe = new_board.make_move(move);
         if (!king_safe) {
             continue;
         }
@@ -234,7 +234,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
     for (Move move : move_list) {
         Board new_board = board;
-        bool king_safe = make_move(new_board, move);
+        bool king_safe = new_board.make_move(move);
         if (!king_safe) {
             continue;
         }
@@ -411,7 +411,7 @@ void play(const char *fen, int moves, int depth) {
         if (move) {
             printf("move:\n");
             move.print_move();
-            make_move(board, move);
+            board.make_move(move);
             printBoard(board);
             int score = -evaluate(board);
             printf("score: %d\n", score*mult);

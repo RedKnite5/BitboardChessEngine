@@ -56,28 +56,6 @@ inline const char *unicode_pieces[12] = {
     "♙", "♘", "♗", "♖", "♕", "♔",
     "♟", "♞", "♝", "♜", "♛", "♚"};
 
-class Board {
-  public:
-    std::array<uint64_t, 12> bitboards;
-    std::array<uint64_t, 2> coloredPieces;
-    uint64_t allPieces = 0;
-    uint64_t hash_key = 0;
-    Square enPassantSquare = No_Square;
-    unsigned short move;
-    unsigned char halfMoveClock;  //  draw claimable at 100, forced at 150
-    unsigned char castleFlags;
-    // turn: true for white, false for black
-    bool turn;
-
-    Board();
-
-    // Constructor to initialize from a FEN string
-    Board(const char *str);
-
-    bool operator==(const Board) const;
-
-    uint64_t zHash();
-};
 
 constexpr int TARGET_SHIFT = 6;
 constexpr int PIECE_SHIFT = 12;
@@ -146,6 +124,32 @@ struct Move {
         return bool(m);
     }
 };
+
+
+class Board {
+  public:
+    std::array<uint64_t, 12> bitboards;
+    std::array<uint64_t, 2> coloredPieces;
+    uint64_t allPieces = 0;
+    uint64_t hash_key = 0;
+    Square enPassantSquare = No_Square;
+    unsigned short move;
+    unsigned char halfMoveClock;  //  draw claimable at 100, forced at 150
+    unsigned char castleFlags;
+    // turn: true for white, false for black
+    bool turn;
+
+    Board();
+
+    // Constructor to initialize from a FEN string
+    Board(const char *str);
+
+    bool operator==(const Board) const;
+
+    uint64_t zHash();
+    bool make_move(Move move);
+};
+
 
 void print_move_list(std::vector<Move> &move_list);
 
