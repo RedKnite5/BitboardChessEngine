@@ -16,8 +16,36 @@ constexpr unsigned int PV_SIZE = (MAX_PLY + 1) * MAX_PLY / 2;
 
 long long current_time_us();
 
+enum class AlphaBeta: uint8_t {
+    None,
+    Exact,
+    Alpha,
+    Beta,
+};
+
+struct TTEntry {
+    uint32_t key;   // half the key. The other half is implied by the TT bucket
+    int32_t value;
+    Move best;      // 32 bits
+    uint8_t depth;
+    AlphaBeta flags;
+};
+
+constexpr int MB_TT = 1024*1024 / sizeof(TTEntry);
+
+struct TT {
+    static const int TableSize = 1*MB_TT;
+    TTEntry tt[TableSize] = {};
+
+    int32_t probe(uint64_t key, int depth, int alpha, int beta) const;
+    void set(uint64_t key, int depth, int value, AlphaBeta flags);
+};
+
+
 class Searcher {
     public:
+    
+    TT tt;
 
     std::array<Move, PV_SIZE> pv = {};
     long long nodes = 0;

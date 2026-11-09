@@ -5,7 +5,6 @@
 #include "search.h"
 
 
-
 int play_graphical(int argc, char **argv, const char *fen, int depth) {
     Game game(fen);
 
@@ -49,6 +48,6 @@ int main(int argc, char **argv) {
     const char *bash_game = "r2k3r/5pbp/1pQ1pn2/p5B1/4P3/2N5/PPP2PPP/2K2B1R w kq - 0 1 ";
 
     // depth 9 > 2200 elo
-    return play_graphical(argc, argv, start, 11);
+    return play_graphical(argc, argv, start, 10);
 }
 

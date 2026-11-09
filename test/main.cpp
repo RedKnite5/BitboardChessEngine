@@ -716,7 +716,6 @@ TEST(MakeMove, MoveBlackPromotionKnight) {
 
 
 
-
 /*
 TEST(MoveOrdering, Sorting) {
     const char *many_attacks = "4k3/1pppp3/2rRnbpr/p2PQ1B1/1PP2p1n/1Nq5/PBRPpPPP/1NbK4 b - - 0 1";

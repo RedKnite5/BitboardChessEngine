@@ -49,5 +49,5 @@ void EngineWorker::calculateMove(Game state, int depth) {
     //     print_move(state_copy.S.pv[i]);
     // }
 
-    emit moveReady(move);
+    emit moveReady(move.m);
 }

@@ -145,7 +145,8 @@ void MainWindow::highlight(int square) {
     highlighted |= 1ULL << square;
 }
 
-void MainWindow::engineTurn(Move move) {
+void MainWindow::engineTurn(int int_move) {
+    Move move = Move(int_move);
     move.print_move();
     // need to test stalemate detenction more 5/11/26
 

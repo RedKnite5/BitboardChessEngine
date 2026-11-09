@@ -3,6 +3,7 @@
 #include <QApplication>
 
 
+#include <cstdint>
 #include <time.h>
 #include <math.h>
 
@@ -13,11 +14,10 @@
 
 #include "search.h"
 
-
 long long current_time_us() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (long long)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    return (long long)ts.tv_sec * 1000*1000 + ts.tv_nsec / 1000;
 }
 
 long driver(Board &board, int depth) {
@@ -116,9 +116,37 @@ void perft_correctness() {
 
 }
 
+int32_t TT::probe(uint64_t key, int depth, int alpha, int beta) const {
+    TTEntry const *entry = &tt[key % TT::TableSize];
+    if (key >> 32 != entry->key || depth > entry->depth) {
+        return INT32_MAX;  // sentinal value to mean value unknown
+    }
 
-void sort_moves(const Board &board, std::vector<Move> &move_list);
+    if (entry->flags == AlphaBeta::Exact) {
+        return entry->value;
+    }
+    if (entry->flags == AlphaBeta::Alpha && entry->value <= alpha) {
+        return alpha;
+    }
+    if (entry->flags == AlphaBeta::Beta && entry->value >= beta) {
+        return beta;
+    }
 
+    return INT32_MAX;
+}
+
+void TT::set(uint64_t key, int depth, int value, AlphaBeta flags) {
+    TTEntry *entry = &tt[key % TT::TableSize];
+
+    if (depth < entry->depth) {
+        return;
+    }
+
+    entry->key = key >> 32;
+    entry->value = value;
+    entry->depth = depth;
+    entry->flags = flags;
+}
 
 int Searcher::score_move(const Board &board, Move move) {
     if (follow_pv && pv[ply] == move) {
@@ -148,6 +176,11 @@ void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) {
 int Searcher::quiscence(const Board &board, int alpha, int beta) {
     // debug info
     nodes++;
+
+    int score;
+    if ((score = tt.probe(board.hash_key, 0, alpha, beta)) != INT32_MAX) {
+        return score;
+    }
 
     int eval_score = evaluate(board);
 
@@ -203,6 +236,13 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     nodes++;
     ply++;
 
+    AlphaBeta hash_flag = AlphaBeta::Alpha;
+    int score;
+    if ((score = tt.probe(board.hash_key, depth, alpha, beta)) != INT32_MAX) {
+        ply--;
+        return score;
+    }
+
     if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
         make_null_move(board);
         //printf("Before search\n");
@@ -242,7 +282,6 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
         legal_moves = true;
 
-        int score;
         // Principal Variation Search and LMR
         // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
         // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
@@ -272,6 +311,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
         if (score >= beta) {
             // fail high
+            tt.set(board.hash_key, depth, beta, AlphaBeta::Beta);
 
             if (!move.get_capture_flag()) {
                 killer_moves[1][ply] = killer_moves[0][ply];
@@ -283,6 +323,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         }
 
         if (score > alpha) {
+            hash_flag = AlphaBeta::Exact;
 
             if (!move.get_capture_flag()) {
                 int piece = move.get_move_piece();
@@ -317,6 +358,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         }
     }
 
+    tt.set(board.hash_key, depth, alpha, hash_flag);
     return alpha;
 }
 
@@ -327,6 +369,7 @@ Move Searcher::negamax(Board &board, int depth) {
     int beta = MAX_SCORE;
     follow_pv = true;
     int score;
+    
 
     const int window = 1000;
     bool failed_low = false;

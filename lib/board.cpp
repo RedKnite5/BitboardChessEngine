@@ -594,7 +594,7 @@ std::string Move::format() const {
     );
 }
 
-void print_move_list(std::vector<Move> &move_list) {
+void print_move_list(const std::vector<Move> &move_list) {
     printf("Move List:\n{");
     for (unsigned int i=0; i < move_list.size(); i++) {
         printf("%d, ", move_list[i].m);
@@ -843,7 +843,7 @@ constexpr U64 rand64_no_state(U64 state) {
 constexpr std::array<std::array<U64, 64>, 12> piece_keys_gen() {
     std::array<std::array<U64, 64>, 12> arr;
     U64 state = 1234;
-    for (int i=0; i<12; i++) {
+    for (Piece i=p; i<=K; ++i) {
         for (int j=0; j<64; j++) {
             arr[i][j] = rand64(state);
         }
@@ -869,7 +869,7 @@ constexpr int halfway = 32;
 constexpr int two_rows = 16;
 constexpr int three_rows = 24;
 
-U64 Board::zHash() {
+constexpr U64 Board::zHash() const {
     U64 hash = castle_keys[this->castleFlags];
 
     for (Piece piece=p; piece <= K; ++piece) {
@@ -896,7 +896,7 @@ U64 Board::zHash() {
     return hash;
 }
 
-void printBitBoard_stream(U64 bitBoard, std::ostream& out) {
+void printBitBoard_stream(const U64 bitBoard, std::ostream& out) {
     for (int row = 7; row >= 0; --row) {
         out << row + 1 << "  ";
         for (int col = 0; col < 8; ++col) {
@@ -1033,26 +1033,25 @@ void init_magic_numbers() {
 }
 */
 
-
-inline U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
+U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
     occupancy &= bishopPsudoAttackMasks[square];
     occupancy *= bishopMagicNumbers[square];
     occupancy >>= 64 - 9;
     return bishopAttackMasks[square][occupancy];
 }
 
-inline U64 get_rook_attacks(unsigned char square, U64 occupancy) {
+U64 get_rook_attacks(unsigned char square, U64 occupancy) {
     occupancy &= rookPsudoAttackMasks[square];
     occupancy *= rookMagicNumbers[square];
     occupancy >>= 64 - 12;
     return rookAttackMasks[square][occupancy];
 }
 
-inline U64 get_queen_attacks(unsigned char square, U64 occupancy) {
+U64 get_queen_attacks(unsigned char square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-inline U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
+U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
     int shift = side * 16 - 8;
 
     // 0 if next pawn square, (square + 8), is blocked

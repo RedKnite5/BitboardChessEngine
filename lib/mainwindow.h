@@ -30,7 +30,7 @@ public:
     ~MainWindow();
     std::array<DraggableLabel*, 64> setupChessboard(QWidget *parent);
     int depth;
-    void engineTurn(Move move);
+    void engineTurn(int int_move);
     void getPlayerMove(GuiMove);
     void makePopup(DraggableLabel *dest, std::function<void(int)> callback);
     void playerMove(Move move, int promotion, GuiMove guimove);

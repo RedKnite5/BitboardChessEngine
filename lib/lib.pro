@@ -8,7 +8,7 @@ CONFIG += c++20
 #CONFIG += debug
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000  # 100 million
-#QMAKE_CXXFLAGS += -g
+QMAKE_CXXFLAGS += -g
 
 QMAKE_CXXFLAGS += -std=c++20
 QMAKE_CXXFLAGS_RELEASE += -flto -fuse-linker-plugin -ffat-lto-objects

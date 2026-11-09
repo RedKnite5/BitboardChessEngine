@@ -71,7 +71,7 @@ constexpr int ENPASSANT_FLAG = 0x400000;
 constexpr int CASTLE_FLAG = 0x800000;
 
 struct Move {
-    int m;
+    uint32_t m;
 
     constexpr int get_move_source() const {
         const int source_mask = 0x3F;
@@ -125,7 +125,6 @@ struct Move {
     }
 };
 
-
 class Board {
   public:
     std::array<uint64_t, 12> bitboards;
@@ -146,12 +145,12 @@ class Board {
 
     bool operator==(const Board) const;
 
-    uint64_t zHash();
+    constexpr uint64_t zHash() const;
     bool make_move(Move move);
 };
 
 
-void print_move_list(std::vector<Move> &move_list);
+void print_move_list(const std::vector<Move> &move_list);
 
 
 void printBitBoard_stream(uint64_t bitBoard, std::ostream& out);
@@ -185,8 +184,6 @@ void generate_moves(const Board &board, std::vector<Move> &move_list);
 void generate_capture_moves(const Board &board, std::vector<Move> &move_list);
 
 void generate_legal_moves(const Board &board, std::vector<Move> &move_list);
-
-bool make_move(Board &board, Move move);
 
 void make_null_move(Board &board);
 void unmake_null_move(Board &board);
