@@ -714,6 +714,21 @@ TEST(MakeMove, MoveBlackPromotionKnight) {
 
 
 
+TEST(EP_IndexCalc, A3) {
+    EXPECT_EQ(ep_index_calc(A3), 0);
+}
+
+TEST(EP_IndexCalc, H3) {
+    EXPECT_EQ(ep_index_calc(H3), 7);
+}
+
+TEST(EP_IndexCalc, A6) {
+    EXPECT_EQ(ep_index_calc(A6), 8);
+}
+
+TEST(EP_IndexCalc, H6) {
+    EXPECT_EQ(ep_index_calc(H6), 15);
+}
 
 
 /*

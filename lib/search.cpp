@@ -193,6 +193,8 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
         alpha = eval_score;
     }
 
+    // TODO: if in check look for checkmate/stalemate and go over evasions
+
     std::vector<Move> move_list;
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
@@ -229,6 +231,7 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
 constexpr int full_depth_moves = 4;
 constexpr int reduction_limit  = 3;
 int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
+    // TODO: if in check extend depth
     if (depth == 0) {
         return quiscence(board, alpha, beta);
     }
