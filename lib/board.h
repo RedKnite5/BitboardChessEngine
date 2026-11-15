@@ -123,6 +123,9 @@ struct Move {
     operator bool() const {
         return bool(m);
     }
+
+    Move() = default;
+    constexpr explicit Move(uint32_t x) : m(x) {}
 };
 
 class Board {
@@ -191,3 +194,5 @@ void unmake_null_move(Board &board);
 int evaluate(const Board &board);
 
 void printAllAttackedSquares(const Board &board, bool side);
+
+void generate_attack_table_h_file();

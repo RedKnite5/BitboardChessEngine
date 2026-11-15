@@ -207,7 +207,6 @@ void MainWindow::engineTurn(int int_move) {
 }
 
 
-
 Move findUserMove(int userSource, int userDest, const std::vector<Move> &move_list) {
     for (auto move : move_list) {
         int source_sq = move.get_move_source();

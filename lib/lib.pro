@@ -11,9 +11,9 @@ QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000  # 100 million
 QMAKE_CXXFLAGS += -g
 
 QMAKE_CXXFLAGS += -std=c++20
-QMAKE_CXXFLAGS_RELEASE += -flto -fuse-linker-plugin -ffat-lto-objects
-QMAKE_CFLAGS_RELEASE   += -flto -fuse-linker-plugin -ffat-lto-objects
-QMAKE_LFLAGS_RELEASE   += -O2 -flto -fuse-linker-plugin
+QMAKE_CXXFLAGS_RELEASE += -O2 -flto=auto -fuse-linker-plugin -ffat-lto-objects
+QMAKE_CFLAGS_RELEASE   += -O2 -flto=auto -fuse-linker-plugin -ffat-lto-objects
+QMAKE_LFLAGS_RELEASE   += -O2 -flto=auto -fuse-linker-plugin
 
 RESOURCES += resources.qrc
 
@@ -28,6 +28,7 @@ HEADERS += \
     mainwindow.h \
     draggable.h \
     board.h \
+    attack_tables.h \
     search.h \
     engine_worker.h 
 

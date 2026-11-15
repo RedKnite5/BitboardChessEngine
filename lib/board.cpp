@@ -1,17 +1,20 @@
 #include <cstdint>
 #include <iostream>
 #include <cstdlib>
-#include <random>
-#include <type_traits>
 #include <vector>
 #include <array>
 #include <cassert>
 #include <algorithm>
 #include <format>
 
+//#include <random>
+//#include <type_traits>
+#include <iostream>
+
 using U64 = uint64_t;
 
 #include "board.h"
+#include "attack_tables.h"
 
 
 /*
@@ -249,267 +252,316 @@ constexpr int get_lsb_index_safe(U64 bitBoard) {
     return safe_ctz - is_zero;
 }
 
-constexpr U64 generatePawnAttackMask(U64 square, bool color) {
-    U64 mask = 0;
-    if (color) { // White pawns
-        mask |= (square << 9) & NOT_A_FILE; // Capture right
-        mask |= (square << 7) & NOT_H_FILE; // Capture left
-    } else {     // Black pawns
-        mask |= (square >> 9) & NOT_H_FILE; // Capture left (white's perspective)
-        mask |= (square >> 7) & NOT_A_FILE; // Capture right
-    }
-    return mask;
-}
-constexpr auto generatePawnAttackMasks() {
-    std::array<std::array<U64, 64>, 2> pawnAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        pawnAttackMasks[WHITE][i] = generatePawnAttackMask(1ULL << i, WHITE);
-        pawnAttackMasks[BLACK][i] = generatePawnAttackMask(1ULL << i, BLACK);
-    }
-    return pawnAttackMasks;
-}
+// constexpr U64 generatePawnAttackMask(U64 square, bool color) {
+//     U64 mask = 0;
+//     if (color) { // White pawns
+//         mask |= (square << 9) & NOT_A_FILE; // Capture right
+//         mask |= (square << 7) & NOT_H_FILE; // Capture left
+//     } else {     // Black pawns
+//         mask |= (square >> 9) & NOT_H_FILE; // Capture left (white's perspective)
+//         mask |= (square >> 7) & NOT_A_FILE; // Capture right
+//     }
+//     return mask;
+// }
+// constexpr auto generatePawnAttackMasks() {
+//     std::array<std::array<U64, 64>, 2> pawnAttackMasks = {};
+//     for (int i = 0; i < 64; ++i) {
+//         pawnAttackMasks[WHITE][i] = generatePawnAttackMask(1ULL << i, WHITE);
+//         pawnAttackMasks[BLACK][i] = generatePawnAttackMask(1ULL << i, BLACK);
+//     }
+//     return pawnAttackMasks;
+// }
 
-constexpr auto generatePawnPushMasks() {
-    std::array<std::array<U64, 56>, 2> pawnPushMasks = {};
-    for (unsigned int i=0; i<56; ++i) {
-        pawnPushMasks[WHITE][i] = 1ULL << (i + 8);
-        if (i >= 8) {
-            pawnPushMasks[BLACK][i] = 1ULL << (i - 8);
-        }
-        if (i >= 8 && i <= 15) {
-            pawnPushMasks[WHITE][i] |= 1ULL << (i + 16);
-        }
-        if (i >= 48 && i <= 55) {
-            pawnPushMasks[BLACK][i] |= 1ULL << (i - 16);
-        }
-    }
-    return pawnPushMasks;
-}
+// constexpr auto generatePawnPushMasks() {
+//     std::array<std::array<U64, 56>, 2> pawnPushMasks = {};
+//     for (unsigned int i=0; i<56; ++i) {
+//         pawnPushMasks[WHITE][i] = 1ULL << (i + 8);
+//         if (i >= 8) {
+//             pawnPushMasks[BLACK][i] = 1ULL << (i - 8);
+//         }
+//         if (i >= 8 && i <= 15) {
+//             pawnPushMasks[WHITE][i] |= 1ULL << (i + 16);
+//         }
+//         if (i >= 48 && i <= 55) {
+//             pawnPushMasks[BLACK][i] |= 1ULL << (i - 16);
+//         }
+//     }
+//     return pawnPushMasks;
+// }
 
-constexpr U64 generateKnightAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 15) & NOT_H_FILE; // Up-Left
-    mask |= (square << 17) & NOT_A_FILE; // Up-Right
-    mask |= (square >> 15) & NOT_A_FILE; // Down-Right
-    mask |= (square >> 17) & NOT_H_FILE; // Down-Left
-    mask |= (square << 6) & NOT_GH_FILES;  // Left-Up
-    mask |= (square << 10) & NOT_AB_FILES; // Right-Up
-    mask |= (square >> 6) & NOT_AB_FILES;  // Right-Down
-    mask |= (square >> 10) & NOT_GH_FILES; // Left-Down
-    return mask;
-}
-constexpr std::array<U64, 64> generateKnightAttackMasks() {
-    std::array<U64, 64> knightAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        knightAttackMasks[i] = generateKnightAttackMask(1ULL << i);
-    }
-    return knightAttackMasks;
-}
+// constexpr U64 generateKnightAttackMask(U64 square) {
+//     U64 mask = 0;
+//     mask |= (square << 15) & NOT_H_FILE; // Up-Left
+//     mask |= (square << 17) & NOT_A_FILE; // Up-Right
+//     mask |= (square >> 15) & NOT_A_FILE; // Down-Right
+//     mask |= (square >> 17) & NOT_H_FILE; // Down-Left
+//     mask |= (square << 6) & NOT_GH_FILES;  // Left-Up
+//     mask |= (square << 10) & NOT_AB_FILES; // Right-Up
+//     mask |= (square >> 6) & NOT_AB_FILES;  // Right-Down
+//     mask |= (square >> 10) & NOT_GH_FILES; // Left-Down
+//     return mask;
+// }
+// constexpr std::array<U64, 64> generateKnightAttackMasks() {
+//     std::array<U64, 64> knightAttackMasks = {};
+//     for (int i = 0; i < 64; ++i) {
+//         knightAttackMasks[i] = generateKnightAttackMask(1ULL << i);
+//     }
+//     return knightAttackMasks;
+// }
 
-constexpr U64 generateKingAttackMask(U64 square) {
-    U64 mask = 0;
-    mask |= (square << 1) & NOT_A_FILE; // Right
-    mask |= (square >> 1) & NOT_H_FILE; // Left
-    mask |= (square << 8);               // Up
-    mask |= (square >> 8);               // Down
-    mask |= (square << 9) & NOT_A_FILE;  // Up-Right
-    mask |= (square << 7) & NOT_H_FILE;  // Up-Left
-    mask |= (square >> 9) & NOT_H_FILE;  // Down-Left
-    mask |= (square >> 7) & NOT_A_FILE;  // Down-Right
-    return mask;
-}
-constexpr std::array<U64, 64> generateKingAttackMasks() {
-    std::array<U64, 64> kingAttackMasks = {};
-    for (int i = 0; i < 64; ++i) {
-        kingAttackMasks[i] = generateKingAttackMask(1ULL << i);
-    }
-    return kingAttackMasks;
-}
+// constexpr U64 generateKingAttackMask(U64 square) {
+//     U64 mask = 0;
+//     mask |= (square << 1) & NOT_A_FILE; // Right
+//     mask |= (square >> 1) & NOT_H_FILE; // Left
+//     mask |= (square << 8);               // Up
+//     mask |= (square >> 8);               // Down
+//     mask |= (square << 9) & NOT_A_FILE;  // Up-Right
+//     mask |= (square << 7) & NOT_H_FILE;  // Up-Left
+//     mask |= (square >> 9) & NOT_H_FILE;  // Down-Left
+//     mask |= (square >> 7) & NOT_A_FILE;  // Down-Right
+//     return mask;
+// }
+// constexpr std::array<U64, 64> generateKingAttackMasks() {
+//     std::array<U64, 64> kingAttackMasks = {};
+//     for (int i = 0; i < 64; ++i) {
+//         kingAttackMasks[i] = generateKingAttackMask(1ULL << i);
+//     }
+//     return kingAttackMasks;
+// }
 
-struct AttackTables {
-    std::array<U64, 64> bishopPsudoAttackMasks;
-    std::array<U64, 64> rookPsudoAttackMasks;
-    std::array<std::array<U64, 512>, 64> bishopAttackMasks;
-    std::array<std::array<U64, 4096>, 64> rookAttackMasks;
-};
+// struct AttackTables {
+//     std::array<U64, 64> bishopPsudoAttackMasks;
+//     std::array<U64, 64> rookPsudoAttackMasks;
+//     std::array<std::array<U64, 512>, 64> bishopAttackMasks;
+//     std::array<std::array<U64, 4096>, 64> rookAttackMasks;
+// };
 
-constexpr U64 generateBishopRelevantOccupancyMask(unsigned char square) {
-    U64 mask = 0;
+// constexpr U64 generateBishopRelevantOccupancyMask(unsigned char square) {
+//     U64 mask = 0;
 
-    int tr = square / 8;
-    int tf = square % 8;
+//     int tr = square / 8;
+//     int tf = square % 8;
 
-    for (int i = 1; i < 8; ++i) {
-        if (tr + i < 7 && tf + i < 7) {
-            // Up-Right
-            mask |= (1ULL << ((tr + i) * 8 + (tf + i)));
-        }
-        if (tr - i >= 1 && tf - i >= 1) {
-            // Down-Left
-            mask |= (1ULL << ((tr - i) * 8 + (tf - i)));
-        }
-        if (tr + i < 7 && tf - i >= 1) {
-            // Up-Left
-            mask |= (1ULL << ((tr + i) * 8 + (tf - i)));
-        }
-        if (tr - i >= 1 && tf + i < 7) {
-            // Down-Right
-            mask |= (1ULL << ((tr - i) * 8 + (tf + i)));
-        }
-    }
-    return mask;
-}
+//     for (int i = 1; i < 8; ++i) {
+//         if (tr + i < 7 && tf + i < 7) {
+//             // Up-Right
+//             mask |= (1ULL << ((tr + i) * 8 + (tf + i)));
+//         }
+//         if (tr - i >= 1 && tf - i >= 1) {
+//             // Down-Left
+//             mask |= (1ULL << ((tr - i) * 8 + (tf - i)));
+//         }
+//         if (tr + i < 7 && tf - i >= 1) {
+//             // Up-Left
+//             mask |= (1ULL << ((tr + i) * 8 + (tf - i)));
+//         }
+//         if (tr - i >= 1 && tf + i < 7) {
+//             // Down-Right
+//             mask |= (1ULL << ((tr - i) * 8 + (tf + i)));
+//         }
+//     }
+//     return mask;
+// }
 
-constexpr U64 generateBishopAttackMask(unsigned char square, U64 occupied) {
-    U64 mask = 0;
+// constexpr U64 generateBishopAttackMask(unsigned char square, U64 occupied) {
+//     U64 mask = 0;
 
-    int tr = square / 8;
-    int tf = square % 8;
+//     int tr = square / 8;
+//     int tf = square % 8;
 
-    for (int i = tr, j = tf; i < 8 && j < 8; ++i, ++j) {
-        // Up-Right
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break; // Stop if occupied
-        }
-    }
-    for (int i = tr, j = tf; i >= 0 && j >= 0; --i, --j) {
-        // Down-Left
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    for (int i = tr, j = tf; i < 8 && j >= 0; ++i, --j) {
-        // Up-Left
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    for (int i = tr, j = tf; i >= 0 && j < 8; --i, ++j) {
-        // Down-Right
-        mask |= 1ULL << (i * 8 + j);
-        if (occupied & (1ULL << (i * 8 + j))) {
-            break;
-        }
-    }
-    // Remove the square itself from the mask
-    mask ^= 1ULL << square;
+//     for (int i = tr, j = tf; i < 8 && j < 8; ++i, ++j) {
+//         // Up-Right
+//         mask |= 1ULL << (i * 8 + j);
+//         if (occupied & (1ULL << (i * 8 + j))) {
+//             break; // Stop if occupied
+//         }
+//     }
+//     for (int i = tr, j = tf; i >= 0 && j >= 0; --i, --j) {
+//         // Down-Left
+//         mask |= 1ULL << (i * 8 + j);
+//         if (occupied & (1ULL << (i * 8 + j))) {
+//             break;
+//         }
+//     }
+//     for (int i = tr, j = tf; i < 8 && j >= 0; ++i, --j) {
+//         // Up-Left
+//         mask |= 1ULL << (i * 8 + j);
+//         if (occupied & (1ULL << (i * 8 + j))) {
+//             break;
+//         }
+//     }
+//     for (int i = tr, j = tf; i >= 0 && j < 8; --i, ++j) {
+//         // Down-Right
+//         mask |= 1ULL << (i * 8 + j);
+//         if (occupied & (1ULL << (i * 8 + j))) {
+//             break;
+//         }
+//     }
+//     // Remove the square itself from the mask
+//     mask ^= 1ULL << square;
 
-    return mask;
-}
+//     return mask;
+// }
 
-constexpr U64 generateRookRelevantOccupancyMask(unsigned char square) {
-    U64 mask = 0;
+// constexpr U64 generateRookRelevantOccupancyMask(unsigned char square) {
+//     U64 mask = 0;
 
-    int tr = square / 8;
-    int tf = square % 8;
+//     int tr = square / 8;
+//     int tf = square % 8;
 
-    for (int i = 1; i < 7; ++i) {
-        if (i != tr) {
-            // Vertical
-            mask |= (1ULL << (i * 8 + tf));
-        }
-        if (i != tf) {
-            // Horizontal
-            mask |= (1ULL << (tr * 8 + i));
-        }
-    }
-    return mask;
-}
+//     for (int i = 1; i < 7; ++i) {
+//         if (i != tr) {
+//             // Vertical
+//             mask |= (1ULL << (i * 8 + tf));
+//         }
+//         if (i != tf) {
+//             // Horizontal
+//             mask |= (1ULL << (tr * 8 + i));
+//         }
+//     }
+//     return mask;
+// }
 
-constexpr U64 generateRookAttackMask(unsigned char square, U64 occupied) {
-    U64 mask = 0;
+// constexpr U64 generateRookAttackMask(unsigned char square, U64 occupied) {
+//     U64 mask = 0;
 
-    int tr = square / 8;
-    int tf = square % 8;
+//     int tr = square / 8;
+//     int tf = square % 8;
 
-    for (int i = tr+1; i < 8; ++i) {
-        // Vertical Up
-        mask |= (1ULL << (i * 8 + tf));
-        if (occupied & (1ULL << (i * 8 + tf))) {
-            break; // Stop if occupied
-        }
-    }
-    for (int i = tr-1; i >= 0; --i) {
-        // Vertical Down
-        mask |= (1ULL << (i * 8 + tf));
-        if (occupied & (1ULL << (i * 8 + tf))) {
-            break;
-        }
-    }
-    for (int i = tf+1; i < 8; ++i) {
-        // Horizontal Right
-        mask |= (1ULL << (tr * 8 + i));
-        if (occupied & (1ULL << (tr * 8 + i))) {
-            break;
-        }
-    }
-    for (int i = tf-1; i >= 0; --i) {
-        // Horizontal Left
-        mask |= (1ULL << (tr * 8 + i));
-        if (occupied & (1ULL << (tr * 8 + i))) {
-            break;
-        }
-    }
+//     for (int i = tr+1; i < 8; ++i) {
+//         // Vertical Up
+//         mask |= (1ULL << (i * 8 + tf));
+//         if (occupied & (1ULL << (i * 8 + tf))) {
+//             break; // Stop if occupied
+//         }
+//     }
+//     for (int i = tr-1; i >= 0; --i) {
+//         // Vertical Down
+//         mask |= (1ULL << (i * 8 + tf));
+//         if (occupied & (1ULL << (i * 8 + tf))) {
+//             break;
+//         }
+//     }
+//     for (int i = tf+1; i < 8; ++i) {
+//         // Horizontal Right
+//         mask |= (1ULL << (tr * 8 + i));
+//         if (occupied & (1ULL << (tr * 8 + i))) {
+//             break;
+//         }
+//     }
+//     for (int i = tf-1; i >= 0; --i) {
+//         // Horizontal Left
+//         mask |= (1ULL << (tr * 8 + i));
+//         if (occupied & (1ULL << (tr * 8 + i))) {
+//             break;
+//         }
+//     }
 
-    return mask;
-}
+//     return mask;
+// }
 
-constexpr U64 setOccupancy(int index, int bits_in_mask, U64 mask) {
-    // index goes up to 2^bits_in_mask
-    U64 occupancy = 0;
-    for (int i = 0; i < bits_in_mask; ++i) {
-        int square = get_lsb_index_safe(mask);
-        mask &= mask - 1;
-        if (index & (1 << i)) {
-            occupancy |= (1ULL << square);
-        }
-    }
-    return occupancy;
-}
+// constexpr U64 setOccupancy(int index, int bits_in_mask, U64 mask) {
+//     // index goes up to 2^bits_in_mask
+//     U64 occupancy = 0;
+//     for (int i = 0; i < bits_in_mask; ++i) {
+//         int square = get_lsb_index_safe(mask);
+//         mask &= mask - 1;
+//         if (index & (1 << i)) {
+//             occupancy |= (1ULL << square);
+//         }
+//     }
+//     return occupancy;
+// }
 
-constexpr AttackTables generateSliderAttackMasks() {
-    AttackTables tables = {};
-    for (int square=0; square < 64; ++square) {
+// constexpr AttackTables generateSliderAttackMasks() {
+//     AttackTables tables = {};
+//     for (int square=0; square < 64; ++square) {
 
-        tables.bishopPsudoAttackMasks[square] = generateBishopRelevantOccupancyMask(square);
-        tables.rookPsudoAttackMasks[square] = generateRookRelevantOccupancyMask(square);
+//         tables.bishopPsudoAttackMasks[square] = generateBishopRelevantOccupancyMask(square);
+//         tables.rookPsudoAttackMasks[square] = generateRookRelevantOccupancyMask(square);
 
-        int bishop_rel_occ_count = bishop_relevant_occupancy_bits[square];
-        int bishop_occupancy_indeces = 1ULL << bishop_rel_occ_count;
+//         int bishop_rel_occ_count = bishop_relevant_occupancy_bits[square];
+//         int bishop_occupancy_indeces = 1ULL << bishop_rel_occ_count;
 
-        for (int i=0; i < bishop_occupancy_indeces; ++i) {
-            U64 occupancy = setOccupancy(i, bishop_rel_occ_count, tables.bishopPsudoAttackMasks[square]);
-            int magic_index = (occupancy * bishopMagicNumbers[square]) >> (64 - 9);
-            tables.bishopAttackMasks[square][magic_index] = generateBishopAttackMask(square, occupancy);
-        }
+//         for (int i=0; i < bishop_occupancy_indeces; ++i) {
+//             U64 occupancy = setOccupancy(i, bishop_rel_occ_count, tables.bishopPsudoAttackMasks[square]);
+//             int magic_index = (occupancy * bishopMagicNumbers[square]) >> (64 - 9);
+//             tables.bishopAttackMasks[square][magic_index] = generateBishopAttackMask(square, occupancy);
+//         }
 
-        int rook_rel_occ_count = rook_relevant_occupancy_bits[square];
-        int rook_occupancy_indeces = 1ULL << rook_relevant_occupancy_bits[square];
+//         int rook_rel_occ_count = rook_relevant_occupancy_bits[square];
+//         int rook_occupancy_indeces = 1ULL << rook_relevant_occupancy_bits[square];
 
-        for (int i=0; i < rook_occupancy_indeces; ++i) {
-            U64 occupancy = setOccupancy(i, rook_rel_occ_count, tables.rookPsudoAttackMasks[square]);
-            int magic_index = (occupancy * rookMagicNumbers[square]) >> (64 - 12);
-            tables.rookAttackMasks[square][magic_index] = generateRookAttackMask(square, occupancy);
-        }
-    }
-    return tables;
-}
+//         for (int i=0; i < rook_occupancy_indeces; ++i) {
+//             U64 occupancy = setOccupancy(i, rook_rel_occ_count, tables.rookPsudoAttackMasks[square]);
+//             int magic_index = (occupancy * rookMagicNumbers[square]) >> (64 - 12);
+//             tables.rookAttackMasks[square][magic_index] = generateRookAttackMask(square, occupancy);
+//         }
+//     }
+//     return tables;
+// }
 
 
-constexpr AttackTables attackTables = generateSliderAttackMasks();
-constexpr auto &bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
-constexpr auto &rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      // [square]
-constexpr auto &bishopAttackMasks = attackTables.bishopAttackMasks;   // [square][occupancy variation]
-constexpr auto &rookAttackMasks = attackTables.rookAttackMasks;       // [square][occupancy variation]
+//constexpr AttackTables attackTables = generateSliderAttackMasks();
+// constexpr auto &bishopPsudoAttackMasks = attackTables.bishopPsudoAttackMasks;  // [square]
+// constexpr auto &rookPsudoAttackMasks = attackTables.rookPsudoAttackMasks;      // [square]
+// constexpr auto &bishopAttackMasks = attackTables.bishopAttackMasks;   // [square][occupancy variation]
+// constexpr auto &rookAttackMasks = attackTables.rookAttackMasks;       // [square][occupancy variation]
 
-constexpr auto pawnAttackMasks = generatePawnAttackMasks();
-constexpr auto pawnPushMasks = generatePawnPushMasks();
-constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
-constexpr std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
+// constexpr auto pawnAttackMasks = generatePawnAttackMasks();
+// constexpr auto pawnPushMasks = generatePawnPushMasks();
+// constexpr std::array<U64, 64> knightAttackMasks = generateKnightAttackMasks();
+// constexpr std::array<U64, 64> kingAttackMasks = generateKingAttackMasks();
 
+
+// template<typename T>
+// void print(T n) {
+//     //printf("%ld", n);
+//     std::cout << n << "ULL";
+// }
+
+// template<typename T, size_t N>
+// void print(const std::array<T, N> &arr) {
+//     printf("{");
+//     for (size_t i=0; i<N; i++) {
+//         print(arr[i]);
+//         if (i != N-1) {
+//             printf(", ");
+//         }
+//     }
+//     printf("}");
+// }
+
+// void generate_attack_table_h_file() {
+//     printf("#pragma once\n#include <array>\n#include <cstdint>\n");
+
+//     // attackTables
+//     printf("inline constexpr std::array<uint64_t, 64> bishopPsudoAttackMasks = {");
+//     print(attackTables.bishopPsudoAttackMasks);
+
+//     printf("};\ninline constexpr std::array<uint64_t, 64> rookPsudoAttackMasks = {");
+//     print(attackTables.rookPsudoAttackMasks);
+
+//     printf("};\ninline constexpr std::array<std::array<uint64_t, 512>, 64> bishopAttackMasks = {");
+//     print(attackTables.bishopAttackMasks);
+
+//     printf("};\ninline constexpr std::array<std::array<uint64_t, 4096>, 64> rookAttackMasks = {");
+//     print(attackTables.rookAttackMasks);
+
+//     printf("};\ninline constexpr std::array<std::array<uint64_t, 64>, 2> pawnAttackMasks = {");
+//     print(pawnAttackMasks);
+    
+//     printf("};\ninline constexpr std::array<std::array<uint64_t, 56>, 2> pawnPushMasks = {");
+//     print(pawnPushMasks);
+
+//     printf("};\ninline constexpr std::array<uint64_t, 64> knightAttackMasks = {");
+//     print(knightAttackMasks);
+
+//     printf("};\ninline constexpr std::array<uint64_t, 64> kingAttackMasks = {");
+//     print(kingAttackMasks);
+
+//     printf("};\n");
+// }
 
 /*
 static U64 magic_number_candidate() {
@@ -869,7 +921,7 @@ constexpr int halfway = 32;
 constexpr int two_rows = 8*2;
 constexpr int four_rows = 8*4;
 
-int ep_index_calc(Square sq) {
+constexpr int ep_index_calc(Square sq) {
     if (sq >= halfway) {
         return sq - four_rows;
     } else {
@@ -1223,7 +1275,7 @@ void generate_knight_moves(const Board &board, std::vector<Move> &move_list) {
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[!Color] >> target_sq) & 1ULL;
-            Move move = encode_move(source_sq, target_sq, piece, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, piece, p, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1247,7 +1299,7 @@ void generate_bishop_moves(const Board &board, std::vector<Move> &move_list) {
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[!Color] >> target_sq) & 1ULL;
-            Move move = encode_move(source_sq, target_sq, piece, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, piece, p, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1271,7 +1323,7 @@ void generate_rook_moves(const Board &board, std::vector<Move> &move_list) {
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[!Color] >> target_sq) & 1ULL;
-            Move move = encode_move(source_sq, target_sq, piece, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, piece, p, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1296,7 +1348,7 @@ void generate_queen_moves(const Board &board, std::vector<Move> &move_list) {
             int target_sq = get_lsb_index(attacks);
 
             bool capture_flag = (board.coloredPieces[!Color] >> target_sq) & 1ULL;
-            Move move = encode_move(source_sq, target_sq, piece, 0, capture_flag, 0, 0, 0);
+            Move move = encode_move(source_sq, target_sq, piece, p, capture_flag, 0, 0, 0);
             move_list.push_back(move);
 
             attacks ^= 1ULL << target_sq;
@@ -1316,7 +1368,7 @@ void generate_king_moves_white(const Board &board, std::vector<Move> &move_list)
         int target_sq = get_lsb_index(attacks);
 
         bool capture_flag = (board.coloredPieces[BLACK] >> target_sq) & 1ULL;
-        Move move = encode_move(source_sq, target_sq, K, 0, capture_flag, 0, 0, 0);
+        Move move = encode_move(source_sq, target_sq, K, p, capture_flag, 0, 0, 0);
         move_list.push_back(move);
 
         attacks ^= 1ULL << target_sq;
@@ -1338,11 +1390,11 @@ void generate_king_moves_white(const Board &board, std::vector<Move> &move_list)
     bool kingside = kingside_rights && no_blockers_kingside;
 
     if (queenside) {
-        move_list.push_back(encode_move(source_sq, 2, K, 0, 0, 0, 0, 1));
+        move_list.push_back(encode_move(source_sq, 2, K, p, 0, 0, 0, 1));
     }
 
     if (kingside) {
-        move_list.push_back(encode_move(source_sq, 6, K, 0, 0, 0, 0, 1));
+        move_list.push_back(encode_move(source_sq, 6, K, p, 0, 0, 0, 1));
     }
 }
 
@@ -1357,7 +1409,7 @@ void generate_king_moves_black(const Board &board, std::vector<Move> &move_list)
         int target_sq = get_lsb_index(attacks);
 
         bool capture_flag = (board.coloredPieces[WHITE] >> target_sq) & 1ULL;
-        Move move = encode_move(source_sq, target_sq, k, 0, capture_flag, 0, 0, 0);
+        Move move = encode_move(source_sq, target_sq, k, p, capture_flag, 0, 0, 0);
         move_list.push_back(move);
 
         attacks ^= 1ULL << target_sq;
@@ -1378,11 +1430,11 @@ void generate_king_moves_black(const Board &board, std::vector<Move> &move_list)
     bool kingside = kingside_rights && no_blockers_kingside;
 
     if (queenside) {
-        move_list.push_back(encode_move(source_sq, 2 + 56, k, 0, 0, 0, 0, 1));
+        move_list.push_back(encode_move(source_sq, 2 + 56, k, p, 0, 0, 0, 1));
     }
 
     if (kingside) {
-        move_list.push_back(encode_move(source_sq, 6 + 56, k, 0, 0, 0, 0, 1));
+        move_list.push_back(encode_move(source_sq, 6 + 56, k, p, 0, 0, 0, 1));
     }
 }
 

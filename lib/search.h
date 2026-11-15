@@ -41,13 +41,20 @@ struct TT {
     void set(uint64_t key, int depth, int value, AlphaBeta flags);
 };
 
+struct Settings {
+    long long stop_time = 0;
+    bool stopped = false;
+    bool time_set = false;
+
+    void checkup();
+};
 
 class Searcher {
-    public:
-    
+  public:
     TT tt;
 
     std::array<Move, PV_SIZE> pv = {};
+    Settings settings;
     long long nodes = 0;
     int ply = -1;
 
@@ -57,8 +64,11 @@ class Searcher {
     bool follow_pv = false;
     bool null_moved = false;
 
-    int score_move(const Board &board, Move move);
-    void sort_moves(const Board &board, std::vector<Move> &move_list);
+    Searcher() = default;
+    Searcher(long long time);
+
+    int score_move(const Board &board, Move move) const;
+    void sort_moves(const Board &board, std::vector<Move> &move_list) const;
 
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);
@@ -67,12 +77,13 @@ class Searcher {
 
 
 class Game {
-    public:
+  public:
     Searcher S;
     Board board;
 
     Game() = default;
     Game(const char *fen);
+    Game(const char *fen, long long time);
 };
 Q_DECLARE_METATYPE(Game)
 

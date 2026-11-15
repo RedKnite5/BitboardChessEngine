@@ -116,6 +116,16 @@ void perft_correctness() {
 
 }
 
+void print_pv(const std::array<Move, PV_SIZE> &pv) {
+    printf("Principal Variation\n");
+    for (unsigned int i=0; i<MAX_PLY; i++) {
+        if (pv[i] == Move(0)) {
+            break;
+        }
+        pv[i].print_move();
+    }
+}
+
 int32_t TT::probe(uint64_t key, int depth, int alpha, int beta) const {
     TTEntry const *entry = &tt[key % TT::TableSize];
     if (key >> 32 != entry->key || depth > entry->depth) {
@@ -148,7 +158,13 @@ void TT::set(uint64_t key, int depth, int value, AlphaBeta flags) {
     entry->flags = flags;
 }
 
-int Searcher::score_move(const Board &board, Move move) {
+void Settings::checkup() {
+    if (time_set == true && current_time_us() > stop_time) {
+        stopped = true;
+    }
+}
+
+int Searcher::score_move(const Board &board, Move move) const {
     if (follow_pv && pv[ply] == move) {
         return 100000;
     }
@@ -168,12 +184,18 @@ int Searcher::score_move(const Board &board, Move move) {
     return 0;
 }
 
-void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) {
+void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) const {
     std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
 }
 
 
 int Searcher::quiscence(const Board &board, int alpha, int beta) {
+    
+    if ((nodes & 2047) == 0) {
+        settings.checkup();
+    }
+    
+    
     // debug info
     nodes++;
 
@@ -212,6 +234,10 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
 
         int score = -quiscence(new_board, -beta, -alpha);
 
+        if (settings.stopped == true) {
+            return 0;
+        }
+
         if (score >= beta) {
             // fail high
             return beta;
@@ -235,6 +261,11 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     if (depth == 0) {
         return quiscence(board, alpha, beta);
     }
+
+    if ((nodes & 2047) == 0) {
+        settings.checkup();
+    }
+
     // debug info
     nodes++;
     ply++;
@@ -312,6 +343,11 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
             }
         }
 
+        if (settings.stopped == true) {
+            return 0;
+        }
+
+
         if (score >= beta) {
             // fail high
             tt.set(board.hash_key, depth, beta, AlphaBeta::Beta);
@@ -374,7 +410,7 @@ Move Searcher::negamax(Board &board, int depth) {
     int score;
     
 
-    const int window = 1000;
+    const int window = 50;
     bool failed_low = false;
     bool failed_high = false;
 
@@ -382,6 +418,10 @@ Move Searcher::negamax(Board &board, int depth) {
     while (current_depth <= depth) {
         score = negamax_rec(board, alpha, beta, current_depth);
         printf("depth: %d score: %d alpha: %d beta: %d\n", current_depth, score, alpha, beta);
+
+        if (settings.stopped == true) {
+            break;
+        }
 
         if (score <= alpha) {
             printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
@@ -410,28 +450,24 @@ Move Searcher::negamax(Board &board, int depth) {
         current_depth++;
     }
     //printf("Score: %d\n", score);
+    print_pv(pv);
     return pv[0];
 }
 
-Game::Game(const char *fen) {
+Searcher::Searcher(long long time) {
+    settings.stop_time = time;
+}
+
+Game::Game(const char *fen, long long time) {
     if (fen) {
         board = Board(fen);
     } else {
         board = Board();
     }
-    Searcher S;
+    S = Searcher(time);
 }
 
-
-void print_pv(const std::array<Move, PV_SIZE> &pv) {
-    printf("Principal Variation\n");
-    for (unsigned int i=0; i<MAX_PLY; i++) {
-        if (pv[i] == Move(0)) {
-            break;
-        }
-        pv[i].print_move();
-    }
-}
+Game::Game(const char *fen) : Game(fen, 0) {}
 
 void play(const char *fen, int moves, int depth) {
     Board board = Board(fen);

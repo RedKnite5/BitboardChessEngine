@@ -712,6 +712,18 @@ TEST(MakeMove, MoveBlackPromotionKnight) {
         "rnbqkbnr/1ppppppp/8/8/8/2NPPP2/P1P3PP/RnBQKBNR w KQkq - 0 1");
 }
 
+TEST(MakeMove, MoveWhiteCapturePromotionQueen) {
+    move_test("rnbqkbnr/ppppppP1/8/8/7p/8/PPPPPPP1/RNBQKBNR w KQkq - 0 1",
+        encode_move(G7, H8, P, Q, 1, 0, 0, 0),
+        "rnbqkbnQ/pppppp2/8/8/7p/8/PPPPPPP1/RNBQKBNR b KQq - 0 1");
+}
+
+TEST(MakeMove, MoveBlackCapturePromotionQueen) {
+    move_test("rnbqkbnr/pppppp1p/8/8/8/5R2/PPPPPPPp/RNBQKBN1 b Qkq - 0 1",
+        encode_move(H2, G1, p, q, 1, 0, 0, 0),
+        "rnbqkbnr/pppppp1p/8/8/8/5R2/PPPPPPP1/RNBQKBq1 w Qkq - 0 1");
+}
+
 
 
 TEST(EP_IndexCalc, A3) {
