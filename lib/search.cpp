@@ -151,16 +151,17 @@ int32_t TT::probe(uint64_t key, int depth, int alpha, int beta) const {
 
 // TODO: add age to prevent entries from previous searches being kept at the
 // expense of entries relevant to current search
-void TT::set(uint64_t key, int depth, int value, AlphaBeta flags) {
+void TT::set(uint64_t key, int depth, int value, int ply, AlphaBeta flags) {
     TTEntry *entry = &tt[key % TT::TableSize];
 
-    if (depth < entry->depth) {
+    if (depth < entry->depth && ply == entry->root_ply) {
         return;
     }
 
     entry->key = key >> 32;
     entry->value = value;
     entry->depth = depth;
+    entry->root_ply = ply;
     entry->flags = flags;
 }
 
@@ -363,7 +364,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
         if (score >= beta) {
             // fail high
-            tt.set(board.hash_key, depth, beta, AlphaBeta::Beta);
+            tt.set(board.hash_key, depth, beta, board.ply() - ply, AlphaBeta::Beta);
 
             if (!move.get_capture_flag()) {
                 killer_moves[1][ply] = killer_moves[0][ply];
@@ -412,7 +413,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         }
     }
 
-    tt.set(board.hash_key, depth, alpha, hash_flag);
+    tt.set(board.hash_key, depth, alpha, board.ply() - ply, hash_flag);
     return alpha;
 }
 

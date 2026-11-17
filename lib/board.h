@@ -148,6 +148,10 @@ class Board {
     Board(const char *str);
 
     bool operator==(const Board) const;
+    
+    constexpr int ply() const {
+        return move * 2 + !turn;
+    }
 
     constexpr uint64_t zHash() const;
     bool make_move(Move move);

@@ -29,6 +29,7 @@ struct TTEntry {
     int32_t value;
     Move best;      // 32 bits
     uint8_t depth;
+    uint8_t root_ply;  // age
     AlphaBeta flags;
 };
 
@@ -39,7 +40,7 @@ struct TT {
     TTEntry tt[TableSize] = {};
 
     int32_t probe(uint64_t key, int depth, int alpha, int beta) const;
-    void set(uint64_t key, int depth, int value, AlphaBeta flags);
+    void set(uint64_t key, int depth, int value, int ply, AlphaBeta flags);
 };
 
 struct Settings {
