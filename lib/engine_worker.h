@@ -7,7 +7,7 @@
 class EngineWorker : public QObject {
     Q_OBJECT
 public slots:
-    void calculateMove(Game state, int depth);
+    void calculateMove(std::shared_ptr<Game> state, int depth);
 signals:
     void moveReady(int move);
 };

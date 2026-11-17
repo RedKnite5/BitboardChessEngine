@@ -246,7 +246,7 @@ void UCI_loop() {
             if (t1.joinable()) {
                 t1.join();
             }
-            game = Game();
+            game.reset();
             game.board = parse_position("position startpos");
         }
 

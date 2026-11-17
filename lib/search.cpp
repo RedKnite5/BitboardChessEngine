@@ -15,6 +15,7 @@
 #include "search.h"
 
 constexpr bool DEBUG = false;
+constexpr bool USE_TT = true;
 
 long long current_time_us() {
     struct timespec ts;
@@ -165,6 +166,16 @@ void TT::set(uint64_t key, int depth, int value, int ply, AlphaBeta flags) {
     entry->flags = flags;
 }
 
+void TT::reset() {
+    memset(tt, 0, TableSize);
+}
+
+IrreversableState::IrreversableState(const Board &board) {
+    ep_square = board.enPassantSquare;
+    half_move_clock = board.halfMoveClock;
+    castling_rights = board.castleFlags;
+}
+
 void Settings::checkup() {
     if (time_set == true && current_time_us() > stop_time) {
         *stopped = true;
@@ -198,15 +209,6 @@ int Searcher::score_move(const Board &board, Move move) const {
 void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) const {
     std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
 }
-
-void Searcher::move_reset() {
-    pv = {};
-    killer_moves = {};
-    null_moved = false;
-    nodes = 0;
-    ply = -1;
-}
-
 
 int Searcher::quiscence(const Board &board, int alpha, int beta) {
     
@@ -323,8 +325,10 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
     for (Move move : move_list) {
         Board new_board = board;
+        state_stack.push_back(IrreversableState(board));
         bool king_safe = new_board.make_move(move);
         if (!king_safe) {
+            state_stack.pop_back();
             continue;
         }
         moves_searched++;
@@ -357,6 +361,9 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
                 }
             }
         }
+
+        state_stack.pop_back();
+        // unmake_move();
 
         if (*settings.stopped == true) {
             return 0;
@@ -489,13 +496,34 @@ Searcher::Searcher(long long time) {
     settings.stop_time = time;
 }
 
-Game::Game(const char *fen, long long time) {
+void Searcher::move_reset() {
+    pv = {};
+    killer_moves = {};
+    null_moved = false;
+    nodes = 0;
+    ply = -1;
+}
+
+void Searcher::reset() {
+    state_stack.clear();
+    settings = Settings();
+    history_moves = {};
+    follow_pv = false;
+    move_reset();
+    tt.reset();
+}
+
+void Game::reset() {
+    board = Board();
+    S.reset();
+}
+
+Game::Game(const char *fen, long long time) : S(time) {
     if (fen) {
         board = Board(fen);
     } else {
         board = Board();
     }
-    S = Searcher(time);
 }
 
 Game::Game(const char *fen) : Game(fen, 0) {}

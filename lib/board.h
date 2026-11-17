@@ -135,10 +135,10 @@ class Board {
     std::array<uint64_t, 2> coloredPieces;
     uint64_t allPieces = 0;
     uint64_t hash_key = 0;
+    uint8_t move;
     Square enPassantSquare = No_Square;
-    unsigned short move;
-    unsigned char halfMoveClock;  //  draw claimable at 100, forced at 150
-    unsigned char castleFlags;
+    uint8_t halfMoveClock;  //  draw claimable at 100, forced at 150
+    uint8_t castleFlags;
     // turn: true for white, false for black
     bool turn;
 

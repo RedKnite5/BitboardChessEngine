@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
+#include <memory>
 #include <vector>
 #include <atomic>
 
@@ -41,6 +43,16 @@ struct TT {
 
     int32_t probe(uint64_t key, int depth, int alpha, int beta) const;
     void set(uint64_t key, int depth, int value, int ply, AlphaBeta flags);
+
+    TT() = default;
+
+    // Delete the copy constructor
+    TT(const TT& other) = delete;
+
+    // Delete the copy assignment operator
+    TT& operator=(const TT& other) = delete;
+
+    void reset();
 };
 
 struct Settings {
@@ -52,17 +64,29 @@ struct Settings {
     void set_stopped_ptr(std::atomic<bool> *aStopped);
 };
 
+struct IrreversableState {
+    Square ep_square;
+    uint8_t half_move_clock;
+    uint8_t castling_rights;
+
+    IrreversableState() = default;
+    IrreversableState(const Board &board);
+};
+
 class Searcher {
   public:
     TT tt;
 
-    std::array<Move, PV_SIZE> pv = {};
+    std::vector<IrreversableState> state_stack = {};
     Settings settings;
     long long nodes = 0;
+
+    std::array<Move, PV_SIZE> pv = {};
     int ply = -1;
 
     std::array<std::array<Move, MAX_PLY>, 2> killer_moves = {};
     std::array<std::array<short, 64>, 12> history_moves = {};
+
 
     bool follow_pv = false;
     bool null_moved = false;
@@ -77,6 +101,8 @@ class Searcher {
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);
     Move negamax(Board &board, int depth);
+
+    void reset();
 };
 
 
@@ -88,6 +114,8 @@ class Game {
     Game() = default;
     Game(const char *fen);
     Game(const char *fen, long long time);
+
+    void reset();
 };
-Q_DECLARE_METATYPE(Game)
+Q_DECLARE_METATYPE(std::shared_ptr<Game>)
 

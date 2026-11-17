@@ -41,7 +41,7 @@ Thumbs.db
 /.qmake.cache
 /.qmake.stash
 *.log
-
+notes_on_testing.txt
 
 # qtcreator generated files
 *.pro.user*

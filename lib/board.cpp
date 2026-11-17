@@ -1007,7 +1007,7 @@ void printBoard_stream(const Board &board, std::ostream& out) {
         out << "\n";
     }
     out << "\n   A B C D E F G H\n";
-    out << "Move: " << board.move << "\n";
+    out << "Move: " << int(board.move) << "\n";
     out << "Castle Flags: ";
     const char castling_key[] = "KQkq";
     for (int i = 0; i < 4; ++i) {

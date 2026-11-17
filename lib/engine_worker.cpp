@@ -3,10 +3,10 @@
 #include "engine_worker.h"
 
 
-void EngineWorker::calculateMove(Game state, int depth) {
+void EngineWorker::calculateMove(std::shared_ptr<Game> state, int depth) {
     long long start = current_time_us();
 
-    Move move = state.S.negamax(state.board, depth);
+    Move move = state->S.negamax(state->board, depth);
     //move = S.pv[0];
     long long duration = current_time_us() - start;
 
@@ -14,7 +14,7 @@ void EngineWorker::calculateMove(Game state, int depth) {
 
     printf("\n\nTime: %lld ms\n", duration / 1000);
     printf("Time: %lld s\n", duration / 1000000);
-    printf("Nodes: %lld\n", state.S.nodes);
+    printf("Nodes: %lld\n", state->S.nodes);
 
     // printf("Principal Variation:\n");
     // for (int i=0; i<MAX_PLY-1; i++) {

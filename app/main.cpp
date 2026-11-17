@@ -6,16 +6,17 @@
 
 
 int play_graphical(int argc, char **argv, const char *fen, int depth) {
-    Game game(fen);
+    //Game game(fen);
+    std::shared_ptr<Game> game = std::make_shared<Game>(fen);
 
-    printBoard(game.board);
+    printBoard(game->board);
 
 
     QApplication a(argc, argv);
     MainWindow w(game, depth);
     w.show();
 
-    if (game.board.turn == 0) {
+    if (game->board.turn == 0) {
         QTimer::singleShot(100, &w, [&w, game, depth]() {
             w.RequestEngineMove(game, depth);
         });
