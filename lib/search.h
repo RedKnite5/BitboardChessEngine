@@ -2,6 +2,7 @@
 
 #include <array>
 #include <vector>
+#include <atomic>
 
 #include <QMetaType>
 
@@ -43,10 +44,11 @@ struct TT {
 
 struct Settings {
     long long stop_time = 0;
-    bool stopped = false;
+    std::atomic<bool> *stopped = nullptr;
     bool time_set = false;
 
     void checkup();
+    void set_stopped_ptr(std::atomic<bool> *aStopped);
 };
 
 class Searcher {
@@ -69,6 +71,7 @@ class Searcher {
 
     int score_move(const Board &board, Move move) const;
     void sort_moves(const Board &board, std::vector<Move> &move_list) const;
+    void move_reset();
 
     int quiscence(const Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);

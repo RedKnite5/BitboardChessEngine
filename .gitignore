@@ -66,6 +66,8 @@ Thumbs.db
 *vcxproj.*
 .cache/
 
+.clangd
+
 # MinGW generated files
 *.Debug
 *.Release

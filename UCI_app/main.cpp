@@ -1,11 +1,13 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
-#include <thread>
 #include <string>
 #include <stdio.h>
 #include <sstream>
 #include <cstdlib>
+#include <thread>
+#include <atomic>
+#include <functional>
 
 #include "search.h"
 #include "board.h"
@@ -16,8 +18,13 @@ const char *name = "RED";
 
 
 
-void run_engine(Game *game) {
-
+void run_engine(Game &game, atomic<bool> *stopped, Move &return_move) {
+    game.S.settings.set_stopped_ptr(stopped);
+    // printf("starting search on this board:\n");
+    // printBoard(game.board);
+    return_move = game.S.negamax(game.board, 10);
+    game.S.move_reset();
+    printf("bestmove %s\n", return_move.format_uci().data());
 }
 
 
@@ -39,21 +46,21 @@ Move findUserMoveUnambiguous(int userSource, int userDest, int userProm, const s
     return Move(0);
 }
 
-Game parse_position(string_view s) {
-    Game game = Game();
+Board parse_position(string_view s) {
+    Board board = Board();
 
     const string pos_str = "position ";
     s.remove_prefix(pos_str.length());
 
     if (s.starts_with("fen")) {
-        game = Game(s.substr(4).data());
+        board = Board(s.substr(4).data());
     }
 
     size_t moves_start = s.find(" moves ", 4);
     if (moves_start == string::npos) {
         printf("UCI board no moves\n");
-        printBoard(game.board);
-        return game;
+        printBoard(board);
+        return board;
     }
 
     s.remove_prefix(moves_start + 7);
@@ -62,31 +69,33 @@ Game parse_position(string_view s) {
     std::vector<Move> move_list;
     unsigned i = 0;
     while (i+3 < s.length()) {
-        int source_file = s[i] - 'A';
+        int source_file = s[i] - 'a';
         int source_rank = s[i+1] - '1';
-        int dest_file = s[i+2] - 'A';
+        int dest_file = s[i+2] - 'a';
         int dest_rank = s[i+3] - '1';
 
         i += 4;
 
         int source_sq = source_rank * 8 + source_file;
         int dest_sq = dest_rank * 8 + dest_file;
-        Piece promotion;
+        Piece promotion = p;
         if (i < s.length()) {
             switch (s[i]) {
                 case 'q': promotion = q; break;
                 case 'r': promotion = r; break;
                 case 'b': promotion = b; break;
                 case 'n': promotion = n; break;
-                default: promotion = p; i--;
+                default: i--;
             }
             i++;
         }
         i++;
 
-        generate_moves(game.board, move_list);
+        printf("source: %s, dest: %s\n", square_coords[source_sq], square_coords[dest_sq]);
+
+        generate_moves(board, move_list);
         Move userMove = findUserMoveUnambiguous(source_sq, dest_sq, promotion, move_list);
-        bool legal = game.board.make_move(userMove);
+        bool legal = board.make_move(userMove);
         if (!legal) {
             printf("Error Illegal Move: ");
             userMove.print_move();
@@ -95,12 +104,12 @@ Game parse_position(string_view s) {
     }
 
     printf("UCI board with moves\n");
-    printBoard(game.board);
+    printBoard(board);
 
-    return game;
+    return board;
 }
 
-int parse_go(string s) {
+int parse_go(string s, bool color) {
     istringstream iss(s);
 
     bool infinite = false;
@@ -128,7 +137,7 @@ int parse_go(string s) {
         "mate"
     };
 
-    array<int, 9> parameters = {};
+    array<int, 9> parameters = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
 
     string token;
     iss >> token;  // clear "go"
@@ -147,6 +156,16 @@ int parse_go(string s) {
         }
     }
 
+    depth = parameters[0];
+    movetime = parameters[1];
+    wtime = parameters[2];
+    btime = parameters[3];
+    winc = parameters[4];
+    binc = parameters[5];
+    movestogo = parameters[6];
+    nodes = parameters[7];
+    mate = parameters[8];
+
     if (infinite) {
         return -1;
     }
@@ -156,15 +175,37 @@ int parse_go(string s) {
     }
 
     int total_time = 0;
-    if (wtime != -1) {
-        total_time += wtime;
+    if (color == WHITE) {
+        if (wtime != -1) {
+            total_time += wtime;
+        }
+
+        if (movestogo != -1) {
+            total_time /= movestogo;
+        } else {
+            total_time /= 30;
+        }
+
+        if (winc != -1) {
+            total_time += winc;
+        }
+    } else {
+        if (btime != -1) {
+            total_time += btime;
+        }
+
+        if (movestogo != -1) {
+            total_time /= movestogo;
+        } else {
+            total_time /= 30;
+        }
+
+        if (binc != -1) {
+            total_time += binc;
+        }
     }
 
-
-
-
-
-
+    return total_time;
 }
 
 void UCI_loop() {
@@ -173,8 +214,14 @@ void UCI_loop() {
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
 
-    Game input_game;
-    Game game_state;
+    Game game;
+    atomic<bool> stopped = false;
+    Move engine_move = Move(0);
+
+    std::thread t1;
+
+    long long start_time = 0;
+    long long stop_time = 0;
 
     while (true) {
         getline(cin, input);
@@ -189,18 +236,57 @@ void UCI_loop() {
         }
 
         if (input.starts_with("position")) {
-            input_game = parse_position(input);
+            if (t1.joinable()) {
+                t1.join();
+            }
+            game.board = parse_position(input);
         }
 
         if (input.starts_with("ucinewgame")) {
-            input_game = parse_position("position startpos");
+            if (t1.joinable()) {
+                t1.join();
+            }
+            game = Game();
+            game.board = parse_position("position startpos");
         }
 
         if (input.starts_with("go")) {
-            parse_go(input);
+            int time = parse_go(input, game.board.turn) * 1000 - 1000;
+            printf("parsed duration %d\n", time);
+
+            if (t1.joinable()) {
+                t1.join();
+            }
+
+            stopped = false;
+
+            if (time != -1) {
+                game.S.settings.time_set = true;
+                start_time = current_time_us();
+                stop_time = start_time + time;
+                game.S.settings.stop_time = stop_time;
+            }
+
+            t1 = thread(run_engine, ref(game), &stopped, ref(engine_move));
+        }
+
+        if (input == "stop" || (stop_time != 0 && stop_time <= current_time_us())) {
+            printf("stop_time: %lld, now: %lld\n", stop_time, current_time_us());
+
+
+            stopped = true;
+            if (t1.joinable()) {
+                t1.join();
+            }
+            // should print info first
+            //printf("bestmove %s\n", engine_move.format_uci().data());
+            
+            start_time = 0;
+            stop_time = 0;
         }
 
         if (input == "quit") {
+            stopped = true;
             break;
         }
 
@@ -211,11 +297,12 @@ void UCI_loop() {
             continue;
         }
 
-
-
-
+        //sleep(1);
     }
 
+    if (t1.joinable()) {
+        t1.join();
+    }
 }
 
 
@@ -228,3 +315,13 @@ int main(int argc, char **argv) {
 }
 
 
+/*
+c-chess-cli_linux -log -each movetime=3 option."Move Overhead"=2000 \
+    -engine cmd=./UCI_app \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
+
+c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
+    -engine cmd=./UCI_app \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
+
+*/

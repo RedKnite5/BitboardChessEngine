@@ -646,6 +646,21 @@ std::string Move::format() const {
     );
 }
 
+std::string Move::format_uci() const {
+    std::string ret = std::format("{}{}",
+        square_coords[get_move_source()],
+        square_coords[get_move_target()]
+    );
+    ret[0] = tolower(ret[0]);
+    ret[2] = tolower(ret[2]);
+    int promotion = get_promotion();
+    if (promotion) {
+        ret += tolower(ascii_pieces[promotion]);
+    }
+
+    return ret;
+}
+
 void print_move_list(const std::vector<Move> &move_list) {
     printf("Move List:\n{");
     for (unsigned int i=0; i < move_list.size(); i++) {
@@ -1004,7 +1019,7 @@ void printBoard_stream(const Board &board, std::ostream& out) {
     }
     out << "\n";
     out << "En Passant Square: " << square_coords[board.enPassantSquare] << "\n";
-    out << "Half Move Clock: " << board.halfMoveClock << "\n";
+    out << "Half Move Clock: " << int(board.halfMoveClock) << "\n";
     out << (board.turn ? "White to move" : "Black to move") << std::endl;
 }
 
@@ -1089,25 +1104,25 @@ void init_magic_numbers() {
 }
 */
 
-U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
+constexpr U64 get_bishop_attacks(unsigned char square, U64 occupancy) {
     occupancy &= bishopPsudoAttackMasks[square];
     occupancy *= bishopMagicNumbers[square];
     occupancy >>= 64 - 9;
     return bishopAttackMasks[square][occupancy];
 }
 
-U64 get_rook_attacks(unsigned char square, U64 occupancy) {
+constexpr U64 get_rook_attacks(unsigned char square, U64 occupancy) {
     occupancy &= rookPsudoAttackMasks[square];
     occupancy *= rookMagicNumbers[square];
     occupancy >>= 64 - 12;
     return rookAttackMasks[square][occupancy];
 }
 
-U64 get_queen_attacks(unsigned char square, U64 occupancy) {
+constexpr U64 get_queen_attacks(unsigned char square, U64 occupancy) {
     return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
-U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
+constexpr U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
     int shift = side * 16 - 8;
 
     // 0 if next pawn square, (square + 8), is blocked
@@ -1117,7 +1132,7 @@ U64 get_quiet_pawn_moves(unsigned char square, U64 occupancy, bool side) {
 }
 
 // is square attacked by side
-inline bool is_square_attacked(const Board &board, unsigned char square, bool side) {
+constexpr bool is_square_attacked(const Board &board, unsigned char square, bool side) {
     // if a black pawn was on square then the two spaces it attacks are where
     // that square could be attacked from by white pawns
     return (pawnAttackMasks[!side][square] & board.bitboards[piece_select(p, side)])
