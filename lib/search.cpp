@@ -120,12 +120,12 @@ void perft_correctness() {
 }
 
 void print_pv(const std::array<Move, PV_SIZE> &pv) {
-    printf("Principal Variation\n");
+    printf("pv ");
     for (unsigned int i=0; i<MAX_PLY; i++) {
         if (pv[i] == Move(0)) {
             break;
         }
-        pv[i].print_move();
+        printf("%s ", pv[i].format_uci().data());
     }
 }
 
@@ -432,8 +432,9 @@ Move Searcher::negamax(Board &board, int depth) {
     int current_depth = 1;
     while (current_depth <= depth) {
 
-        printf("info depth %d score cp %d nodes %lld\n", current_depth, score, nodes);
-
+        printf("info depth %d score cp %d nodes %lld ", current_depth, score, nodes);
+        print_pv(pv);
+        printf("\n");
 
         score = negamax_rec(board, alpha, beta, current_depth);
         if (DEBUG) {

@@ -271,15 +271,10 @@ void UCI_loop() {
         }
 
         if (input == "stop" || (stop_time != 0 && stop_time <= current_time_us())) {
-            printf("stop_time: %lld, now: %lld\n", stop_time, current_time_us());
-
-
             stopped = true;
             if (t1.joinable()) {
                 t1.join();
             }
-            // should print info first
-            //printf("bestmove %s\n", engine_move.format_uci().data());
             
             start_time = 0;
             stop_time = 0;
@@ -323,5 +318,15 @@ c-chess-cli_linux -log -each movetime=3 option."Move Overhead"=2000 \
 c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine cmd=./UCI_app \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
+
+c-chess-cli_linux -sprt -games 10 -log -each tc=20+.5 option."Move Overhead"=500 \
+    -engine cmd=./UCI_app \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
+
+
+Score of RED vs Stockfish 19: 4 - 3 - 3  [0.550] 10
+SPRT: LLR = 0.016 [-2.944,2.944]
+
+
 
 */
