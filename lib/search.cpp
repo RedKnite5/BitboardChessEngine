@@ -1,7 +1,6 @@
-#include "mainwindow.h"
+//#include "mainwindow.h"
 
 #include <QApplication>
-
 
 #include <cstdint>
 #include <time.h>
@@ -11,11 +10,10 @@
 #include <vector>
 
 #include "board.h"
-
 #include "search.h"
 
 constexpr bool DEBUG = false;
-constexpr bool USE_TT = true;
+//constexpr bool USE_TT = true;
 
 long long current_time_us() {
     struct timespec ts;
@@ -167,13 +165,7 @@ void TT::set(uint64_t key, int depth, int value, int ply, AlphaBeta flags) {
 }
 
 void TT::reset() {
-    memset(tt, 0, TableSize);
-}
-
-IrreversableState::IrreversableState(const Board &board) {
-    ep_square = board.enPassantSquare;
-    half_move_clock = board.halfMoveClock;
-    castling_rights = board.castleFlags;
+    memset(tt, 0, TableSize*sizeof(TTEntry));
 }
 
 void Settings::checkup() {
@@ -299,10 +291,12 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     }
 
     if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
+        state_stack.push_back(IrreversableState(board, Move(0)));
         make_null_move(board);
         int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
 
-        unmake_null_move(board);
+        unmake_null_move(board, state_stack.back());
+        state_stack.pop_back();
         if (score >= beta) {
             null_moved = true;
             ply--;
@@ -324,10 +318,11 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     int moves_searched = -1;
 
     for (Move move : move_list) {
-        Board new_board = board;
-        state_stack.push_back(IrreversableState(board));
-        bool king_safe = new_board.make_move(move);
+        //Board new_board = board;
+        state_stack.push_back(IrreversableState(board, move));
+        bool king_safe = board.make_move(move);
         if (!king_safe) {
+            unmake_move(board, move, state_stack.back());
             state_stack.pop_back();
             continue;
         }
@@ -339,7 +334,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
         // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
         if (moves_searched == 0) {
-            score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+            score = -negamax_rec(board, -beta, -alpha, depth-1);
         } else {
             // should also look for check and maybe some other stuff
             bool okay_to_reduce = moves_searched > full_depth_moves
@@ -349,21 +344,21 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
                 && move != killer_moves[0][ply]
                 && move != killer_moves[1][ply];
             if (okay_to_reduce) {
-                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-2);
+                score = -negamax_rec(board, -alpha-1, -alpha, depth-2);
             } else {
                 // Hack to ensure that full-depth search is done
                 score = alpha + 1;
             }
             if (score > alpha) {
-                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
+                score = -negamax_rec(board, -alpha-1, -alpha, depth-1);
                 if (score > alpha && score < beta) {
-                    score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+                    score = -negamax_rec(board, -beta, -alpha, depth-1);
                 }
             }
         }
 
+        unmake_move(board, move, state_stack.back());
         state_stack.pop_back();
-        // unmake_move();
 
         if (*settings.stopped == true) {
             return 0;
@@ -528,48 +523,51 @@ Game::Game(const char *fen, long long time) : S(time) {
 
 Game::Game(const char *fen) : Game(fen, 0) {}
 
-void play(const char *fen, int moves, int depth) {
-    Board board = Board(fen);
-    Searcher S;
-    printBoard(board);
+
+
+
+// void play(const char *fen, int moves, int depth) {
+//     Board board = Board(fen);
+//     Searcher S;
+//     printBoard(board);
     
-    for (int i = 0; i < moves; i++) {
-        //int look_ahead = 7;
-        int mult = -1;
-        if (board.turn) {
-            //look_ahead = 6;
-            mult = 1;
-        }
+//     for (int i = 0; i < moves; i++) {
+//         //int look_ahead = 7;
+//         int mult = -1;
+//         if (board.turn) {
+//             //look_ahead = 6;
+//             mult = 1;
+//         }
 
-        long long start = current_time_us();
-        Move move = S.negamax(board, depth);
-        //move = S.pv[0];
-        long long duration = current_time_us() - start;
+//         long long start = current_time_us();
+//         Move move = S.negamax(board, depth);
+//         //move = S.pv[0];
+//         long long duration = current_time_us() - start;
 
-        printf("\n\nTime: %lld ms\n", duration / 1000);
-        printf("Time: %lld s\n", duration / 1000000);
+//         printf("\n\nTime: %lld ms\n", duration / 1000);
+//         printf("Time: %lld s\n", duration / 1000000);
 
-        if (move) {
-            printf("move:\n");
-            move.print_move();
-            board.make_move(move);
-            printBoard(board);
-            int score = -evaluate(board);
-            printf("score: %d\n", score*mult);
-            printf("Nodes: %lld\n", S.nodes);
-            print_pv(S.pv);
-        } else {
-            printf("No moves!\n");
+//         if (move) {
+//             printf("move:\n");
+//             move.print_move();
+//             board.make_move(move);
+//             printBoard(board);
+//             int score = -evaluate(board);
+//             printf("score: %d\n", score*mult);
+//             printf("Nodes: %lld\n", S.nodes);
+//             print_pv(S.pv);
+//         } else {
+//             printf("No moves!\n");
 
-            if (is_king_exposed(board, board.turn)) {
-                printf("Checkmate!\n");
-            } else {
-                printf("Stalemate!\n");
-            }
-            break;
-        }
-    }
-}
+//             if (is_king_exposed(board, board.turn)) {
+//                 printf("Checkmate!\n");
+//             } else {
+//                 printf("Stalemate!\n");
+//             }
+//             break;
+//         }
+//     }
+// }
 
 
 //int main(int argc, char **argv) {

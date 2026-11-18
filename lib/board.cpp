@@ -602,7 +602,14 @@ constexpr Piece piece_select(Piece piece, bool side) {
     return piece + 6*side;
 }
 
+
+
+
+
 /*
+
+ 000 0000 0001 1011 1111 1110
+
 Moves
 0000 0000 0000 0000 0011 1111 Source square
 0000 0000 0000 1111 1100 0000 Target square
@@ -1221,61 +1228,6 @@ void generate_pawn_moves(const Board &board, std::vector<Move> &move_list) {
     }
 }
 
-void generate_pawn_moves_black(const Board &board, std::vector<Move> &move_list) {
-    U64 p_bb = board.bitboards[p];
-    int source_sq, target_sq, cur_move;
-    while (p_bb) {
-        source_sq = get_lsb_index(p_bb);
-        bool not_promoting = source_sq > H2;
-
-        U64 attacks = pawnAttackMasks[BLACK][source_sq];
-        attacks &= board.coloredPieces[WHITE] | (1ULL << board.enPassantSquare);
-        int move = source_sq | (p << PIECE_SHIFT);
-
-        U64 pushes = get_quiet_pawn_moves(source_sq, board.allPieces, BLACK);
-        while (pushes) {
-            target_sq = get_lsb_index(pushes);
-            cur_move = move | (target_sq << 6);
-
-            if (not_promoting) {
-                //                      Double Pawn FLag
-                cur_move |= ((target_sq == source_sq - 16) << DOUBLE_SHIFT);
-                move_list.push_back(Move(cur_move));
-            } else {
-                //                               Promotion
-                move_list.push_back(Move(cur_move | (q << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (b << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (n << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (r << PROMOTION_SHIFT)));
-            }
-
-            pushes ^= (1ULL << target_sq);
-        }
-
-        move |= CAPTURE_FLAG;
-        while (attacks) {
-            target_sq = get_lsb_index(attacks);
-            cur_move = move | (target_sq << TARGET_SHIFT);
-
-            if (not_promoting) {
-                //                               Enpassant FLag
-                int enpassant_flag = (board.enPassantSquare == target_sq) << ENPASSANT_SHIFT;
-                move_list.push_back(Move(cur_move | enpassant_flag));
-            } else {
-                //                               Promotion
-                move_list.push_back(Move(cur_move | (q << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (b << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (n << PROMOTION_SHIFT)));
-                move_list.push_back(Move(cur_move | (r << PROMOTION_SHIFT)));
-            }
-
-            attacks ^= 1ULL << target_sq;
-        }
-
-        p_bb ^= 1ULL << source_sq;
-    }
-}
-
 template<bool Color>
 void generate_knight_moves(const Board &board, std::vector<Move> &move_list) {
     Piece piece = piece_select(n, Color);
@@ -1541,6 +1493,23 @@ void generate_capture_moves(const Board &board, std::vector<Move> &move_list) {
     move_list.erase(iterator, move_list.end());
 }
 
+IrreversableState::IrreversableState(const Board &board, Move move) {
+    ep_square = board.enPassantSquare;
+    half_move_clock = board.halfMoveClock;
+    castling_rights = board.castleFlags;
+    captured = Last;
+    // TODO: could maybe put this part in make_move?
+    if (!move.get_capture_flag()) {
+        return;
+    }
+    int dest = move.get_move_target();
+    for (Piece piece = p; piece < K; ++piece) {
+        if (board.bitboards[piece] & (1ULL << dest)) {
+            captured = piece;
+            return;
+        }
+    }
+}
 
 bool Board::make_move(Move move) {
     int source_sq = move.get_move_source();
@@ -1583,17 +1552,17 @@ bool Board::make_move(Move move) {
 
     this->hash_key ^= castle_keys[this->castleFlags];
 
-    if (piece == 0 || piece == 6) {
+    if (piece == p || piece == P) {
         this->halfMoveClock = 0;
     }
 
     if (promotion) {
+        // TODO: why am I using piece_select here? just use the variable piece
         Piece pawn_color = piece_select(p, side);
         this->bitboards[pawn_color] ^= 1ULL << target_sq;
         this->bitboards[promotion] ^= 1ULL << target_sq;
         this->hash_key ^= piece_keys[pawn_color][target_sq] ^ piece_keys[promotion][target_sq];
     }
-    
 
     if (this->enPassantSquare < 64) {
         this->hash_key ^= enpassant_keys[ep_index_calc(this->enPassantSquare)];
@@ -1609,7 +1578,7 @@ bool Board::make_move(Move move) {
     if (enpassant) {
         Piece opp_piece = piece_select(p, !side);
         int taken_sq = target_sq + 8 - side*two_rows;
-        this->bitboards[opp_piece] ^= 1ULL << (taken_sq);
+        this->bitboards[opp_piece] ^= 1ULL << taken_sq;
         this->hash_key ^= piece_keys[opp_piece][taken_sq];
     }
 
@@ -1647,6 +1616,8 @@ bool Board::make_move(Move move) {
             break;
         
         default:
+            move.print_move();
+            printBoard(*this);
             assert(false);             // catch in debug
             __builtin_unreachable();   // optimize in release
         }
@@ -1665,8 +1636,8 @@ bool Board::make_move(Move move) {
                                | this->bitboards[B]
                                | this->bitboards[Q]
                                | this->bitboards[K];
-    
-    
+
+
     this->allPieces = this->coloredPieces[BLACK] | this->coloredPieces[WHITE];
     this->turn ^= 1;
     this->hash_key ^= side_key;
@@ -1679,8 +1650,9 @@ bool Board::make_move(Move move) {
 }
 
 
+
 // TODO: finish this and implement stack
-void unmake_move(Board &board, Move move) {
+void unmake_move(Board &board, Move move, IrreversableState state) {
     int source_sq = move.get_move_source();
     int target_sq = move.get_move_target();
     int piece = move.get_move_piece();
@@ -1691,64 +1663,65 @@ void unmake_move(Board &board, Move move) {
     bool castle = move.get_castle_flag();
 
     board.turn ^= 1;
+    board.hash_key ^= side_key;
     bool side = board.turn;
 
     // move piece on appropriate bitboard
     board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
+    board.hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
 
-    //board.castleFlags &= castling_rights[source_sq];
+    board.hash_key ^= castle_keys[board.castleFlags];
+    board.castleFlags = state.castling_rights;
+    board.hash_key ^= castle_keys[board.castleFlags];
 
-    //board.halfMoveClock++;
+    board.halfMoveClock = state.half_move_clock;
     board.move -= !side;
 
-    if (capture) {
-        // clear captured piece
-        Piece start = piece_select(p, !side);
-
-        U64 mask = ~(1ULL << target_sq);
-        for (Piece i=start; i < start+6; ++i) {
-            board.bitboards[i] &= mask;
-        }
-        board.castleFlags &= castling_rights[target_sq];
-        board.halfMoveClock = 0;
+    if (capture && !enpassant) {
+        board.bitboards[state.captured] |= (1ULL << target_sq);
+        board.hash_key ^= piece_keys[state.captured][target_sq];
     }
-
-    // if (piece == 0 || piece == 6) {
-    //     board.halfMoveClock = 0;
-    // }
 
     if (promotion) {
-        board.bitboards[piece_select(p, side)] ^= 1ULL << target_sq;
+        board.bitboards[piece] ^= 1ULL << target_sq;
         board.bitboards[promotion] ^= 1ULL << target_sq;
+        board.hash_key ^= piece_keys[piece][target_sq] ^ piece_keys[promotion][target_sq];
     }
-    
 
+    if (double_shift) {
+        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+    }
 
-    // if (double_shift) {
-    //     board.enPassantSquare = static_cast<Square>((source_sq + target_sq) / 2);
-    // } else {
-    //     board.enPassantSquare = No_Square;
-    // }
+    board.enPassantSquare = state.ep_square;
+
+    if (board.enPassantSquare < 64) {
+        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+    }
 
     if (enpassant) {
-        board.bitboards[piece_select(p, !side)] ^= 1ULL << (target_sq + 8 - side*16);
+        Piece opp_piece = piece_select(p, !side);
+        int taken_sq = target_sq + 8 - side*two_rows;
+        board.bitboards[opp_piece] ^= 1ULL << taken_sq;
+        board.hash_key ^= piece_keys[opp_piece][taken_sq];
     }
-
-    //bool king_danger_illegal = 0;
 
     if (castle) {
         switch (target_sq) {
         case C1:
             board.bitboards[R] ^= 1ULL | (1ULL << D1);
+            board.hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
             break;
         case G1:
             board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            board.hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
             break;
         case C8:
             board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            board.hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
             break;
         case G8:
             board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            board.hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
             break;
         
         default:
@@ -1770,8 +1743,8 @@ void unmake_move(Board &board, Move move) {
                                | board.bitboards[B]
                                | board.bitboards[Q]
                                | board.bitboards[K];
-    
-    
+
+
     board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
 }
 
@@ -1781,17 +1754,22 @@ void make_null_move(Board &board) {
     board.turn ^= 1;
     board.hash_key ^= side_key;
 
-    // if (this->enPassantSquare < 64) {
-    //     this->hash_key ^= enpassant_keys[ep_index_calc(this->enPassantSquare)];
-    // }
+    if (board.enPassantSquare < 64) {
+        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+        board.enPassantSquare = No_Square;
+    }
 }
 
-void unmake_null_move(Board &board) {
+void unmake_null_move(Board &board, IrreversableState state) {
     board.turn ^= 1;
     board.move -= !board.turn;
     board.hash_key ^= side_key;
 
     // restore enpassant
+    board.enPassantSquare = state.ep_square;
+    if (board.enPassantSquare < 64) {
+        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+    }
 }
 
 

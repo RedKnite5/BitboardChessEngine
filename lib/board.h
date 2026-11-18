@@ -129,6 +129,8 @@ struct Move {
     constexpr explicit Move(uint32_t x) : m(x) {}
 };
 
+struct IrreversableState;
+
 class Board {
   public:
     std::array<uint64_t, 12> bitboards;
@@ -157,6 +159,15 @@ class Board {
     bool make_move(Move move);
 };
 
+struct IrreversableState {
+    Square ep_square;
+    uint8_t half_move_clock;
+    uint8_t castling_rights;
+    Piece captured;
+
+    IrreversableState() = default;
+    IrreversableState(const Board &board, Move move);
+};
 
 void print_move_list(const std::vector<Move> &move_list);
 
@@ -193,8 +204,10 @@ void generate_capture_moves(const Board &board, std::vector<Move> &move_list);
 
 void generate_legal_moves(const Board &board, std::vector<Move> &move_list);
 
+void unmake_move(Board &board, Move move, IrreversableState state);
+
 void make_null_move(Board &board);
-void unmake_null_move(Board &board);
+void unmake_null_move(Board &board, IrreversableState state);
 
 int evaluate(const Board &board);
 

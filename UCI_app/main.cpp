@@ -305,7 +305,6 @@ void UCI_loop() {
 int main(int argc, char **argv) {
     //generate_attack_table_h_file();
 
-
     UCI_loop();
 }
 
@@ -327,6 +326,10 @@ c-chess-cli_linux -sprt -games 10 -log -each tc=20+.5 option."Move Overhead"=500
 Score of RED vs Stockfish 19: 4 - 3 - 3  [0.550] 10
 SPRT: LLR = 0.016 [-2.944,2.944]
 
+
+c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
+    -engine cmd=./UCI_app
 
 
 c-chess-cli_linux -sprt -games 20 -each tc=20+.5 option."Move Overhead"=500 \

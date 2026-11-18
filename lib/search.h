@@ -64,15 +64,6 @@ struct Settings {
     void set_stopped_ptr(std::atomic<bool> *aStopped);
 };
 
-struct IrreversableState {
-    Square ep_square;
-    uint8_t half_move_clock;
-    uint8_t castling_rights;
-
-    IrreversableState() = default;
-    IrreversableState(const Board &board);
-};
-
 class Searcher {
   public:
     TT tt;
