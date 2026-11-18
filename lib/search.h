@@ -89,7 +89,7 @@ class Searcher {
     void sort_moves(const Board &board, std::vector<Move> &move_list) const;
     void move_reset();
 
-    int quiscence(const Board &board, int alpha, int beta);
+    int quiscence(Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);
     Move negamax(Board &board, int depth);
 

@@ -318,7 +318,7 @@ c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine cmd=./UCI_app \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
 
-c-chess-cli_linux -sprt -games 10 -log -each tc=20+.5 option."Move Overhead"=500 \
+c-chess-cli_linux -sprt -games 10 -concurrency 10 -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
     -engine cmd=./UCI_app
 
@@ -339,5 +339,10 @@ c-chess-cli_linux -sprt -games 20 -each tc=20+.5 option."Move Overhead"=500 \
 
 Score of base vs age: 3 - 4 - 13  [0.475] 20
 SPRT: LLR = -0.037 [-2.944,2.944]
+
+
+// After TT age and unmake_move
+Score of Stockfish 19 vs RED: 5 - 2 - 3  [0.650] 10
+SPRT: LLR = 0.056 [-2.944,2.944]
 
 */

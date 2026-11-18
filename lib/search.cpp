@@ -202,13 +202,11 @@ void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) cons
     std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
 }
 
-int Searcher::quiscence(const Board &board, int alpha, int beta) {
-    
+int Searcher::quiscence(Board &board, int alpha, int beta) {
     if ((nodes & 2047) == 0) {
         settings.checkup();
     }
-    
-    
+
     // debug info
     nodes++;
 
@@ -239,13 +237,19 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     }
 
     for (Move move : move_list) {
-        Board new_board = board;
-        bool king_safe = new_board.make_move(move);
+        //Board new_board = board;
+        state_stack.push_back(IrreversableState(board, move));
+        bool king_safe = board.make_move(move);
         if (!king_safe) {
+            unmake_move(board, move, state_stack.back());
+            state_stack.pop_back();
             continue;
         }
 
-        int score = -quiscence(new_board, -beta, -alpha);
+        int score = -quiscence(board, -beta, -alpha);
+
+        unmake_move(board, move, state_stack.back());
+        state_stack.pop_back();
 
         if (*settings.stopped == true) {
             return 0;
