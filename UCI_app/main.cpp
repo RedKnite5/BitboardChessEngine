@@ -18,13 +18,27 @@ const char *name = "RED";
 
 
 
-void run_engine(Game &game, atomic<bool> *stopped, Move &return_move) {
+void run_engine(Game &game, atomic<bool> *stopped) {
     game.S.settings.set_stopped_ptr(stopped);
     // printf("starting search on this board:\n");
     // printBoard(game.board);
-    return_move = game.S.negamax(game.board, 10);
+
+    // the operator[] inserts 0 if not present
+    uint8_t &rep_count = game.S.real_repititions[game.board.hash_key];
+    rep_count++;
+
+    Move return_move = game.S.negamax(game.board, 10);
     game.S.move_reset();
     printf("bestmove %s\n", return_move.format_uci().data());
+
+    if (return_move.get_capture_flag() || return_move.get_move_piece() == p || return_move.get_move_piece() == P) {
+        game.S.real_repititions.clear();
+    }
+
+    game.board.make_move(return_move);
+
+    uint8_t &rep_count_after = game.S.real_repititions[game.board.hash_key];
+    rep_count_after++;
 }
 
 
@@ -216,7 +230,6 @@ void UCI_loop() {
 
     Game game;
     atomic<bool> stopped = false;
-    Move engine_move = Move(0);
 
     std::thread t1;
 
@@ -240,10 +253,6 @@ void UCI_loop() {
                 t1.join();
             }
             game.board = parse_position(input);
-
-            // the operator[] inserts 0 if not present
-            uint8_t &rep_count = game.S.real_repititions[game.board.zHash()];
-            rep_count++;
         }
 
         if (input.starts_with("ucinewgame")) {
@@ -271,7 +280,7 @@ void UCI_loop() {
                 game.S.settings.stop_time = stop_time;
             }
 
-            t1 = thread(run_engine, ref(game), &stopped, ref(engine_move));
+            t1 = thread(run_engine, ref(game), &stopped);
         }
 
         if (input == "stop" || (stop_time != 0 && stop_time <= current_time_us())) {
@@ -322,7 +331,7 @@ c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine cmd=./UCI_app \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
 
-c-chess-cli_linux -sprt -games 10 -concurrency 10 -log -each tc=20+.5 option."Move Overhead"=500 \
+c-chess-cli_linux -sprt elo1=10 -games 10 -concurrency 10 -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
     -engine cmd=./UCI_app
 

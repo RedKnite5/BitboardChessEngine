@@ -342,6 +342,17 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         }
         moves_searched++;
 
+        if (real_repititions.contains(board.hash_key)) {
+            uint8_t count = real_repititions[board.hash_key];
+            if (count == 2 || search_repititions.contains(board.hash_key)) {
+                unmake_move(board, move, state_stack.back());
+                state_stack.pop_back();
+                ply--;
+                return 0;
+            }
+        }
+        search_repititions.insert(board.hash_key);
+
         legal_moves = true;
 
         // Principal Variation Search and LMR
@@ -373,6 +384,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
 
         unmake_move(board, move, state_stack.back());
         state_stack.pop_back();
+        search_repititions.erase(board.hash_key);
 
         if (settings.stopped != nullptr) {
             if (*settings.stopped == true) {
