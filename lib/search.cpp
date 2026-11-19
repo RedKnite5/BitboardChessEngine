@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "board.h"
@@ -70,7 +71,6 @@ void time_driver() {
         tot_time += durations[d];
     }
 
-    
     long long mean = tot_time / iterations;
 
     printf("\nMean: %lld us\n", mean);
@@ -115,7 +115,6 @@ void perft_correctness() {
 
         printf("Nodes: %10lld    Time: %lld ms\n", node_counts[i], durations[i] / 1000);
     }
-
 }
 
 void print_pv(const std::array<Move, PV_SIZE> &pv) {
@@ -128,29 +127,31 @@ void print_pv(const std::array<Move, PV_SIZE> &pv) {
     }
 }
 
-int32_t TT::probe(uint64_t key, int depth, int alpha, int beta) const {
-    //return INT32_MAX;
+std::pair<int32_t, Move> TT::probe(uint64_t key, int depth, int alpha, int beta) const {
+    //return INT32_MAX;  // sentinal value to mean value unknown
     TTEntry const *entry = &tt[key % TT::TableSize];
-    if (key >> 32 != entry->key || depth > entry->depth) {
-        return INT32_MAX;  // sentinal value to mean value unknown
+    if (key >> 32 != entry->key) {
+        return std::make_pair(INT32_MAX, Move(0));
+    }
+
+    if (depth > entry->depth) {
+        return std::make_pair(INT32_MAX, Move(entry->best));
     }
 
     if (entry->flags == AlphaBeta::Exact) {
-        return entry->value;
+        return std::make_pair(entry->value, Move(entry->best));
     }
     if (entry->flags == AlphaBeta::Alpha && entry->value <= alpha) {
-        return alpha;
+        return std::make_pair(alpha, Move(entry->best));
     }
     if (entry->flags == AlphaBeta::Beta && entry->value >= beta) {
-        return beta;
+        return std::make_pair(beta, Move(entry->best));
     }
 
-    return INT32_MAX;
+    return std::make_pair(INT32_MAX, Move(0));
 }
 
-// TODO: add age to prevent entries from previous searches being kept at the
-// expense of entries relevant to current search
-void TT::set(uint64_t key, int depth, int value, int ply, AlphaBeta flags) {
+void TT::set(uint64_t key, Move best, int depth, int value, int ply, AlphaBeta flags) {
     TTEntry *entry = &tt[key % TT::TableSize];
 
     if (depth < entry->depth && ply == entry->root_ply) {
@@ -159,6 +160,7 @@ void TT::set(uint64_t key, int depth, int value, int ply, AlphaBeta flags) {
 
     entry->key = key >> 32;
     entry->value = value;
+    entry->best = best;
     entry->depth = depth;
     entry->root_ply = ply;
     entry->flags = flags;
@@ -178,8 +180,8 @@ void Settings::set_stopped_ptr(std::atomic<bool> *aStopped) {
     stopped = aStopped;
 }
 
-int Searcher::score_move(const Board &board, Move move) const {
-    if (follow_pv && pv[ply] == move) {
+int Searcher::score_move(const Board &board, Move move, Move tt_move) const {
+    if (move == tt_move || (follow_pv && pv[ply] == move)) {
         return 100000;
     }
 
@@ -198,8 +200,8 @@ int Searcher::score_move(const Board &board, Move move) const {
     return 0;
 }
 
-void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) const {
-    std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
+void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list, Move tt_move) const {
+    std::ranges::sort(move_list, {}, [this, &board, tt_move](Move move){ return -score_move(board, move, tt_move); });
 }
 
 int Searcher::quiscence(Board &board, int alpha, int beta) {
@@ -207,12 +209,11 @@ int Searcher::quiscence(Board &board, int alpha, int beta) {
         settings.checkup();
     }
 
-    // debug info
     nodes++;
 
-    int score;
-    if ((score = tt.probe(board.hash_key, 0, alpha, beta)) != INT32_MAX) {
-        return score;
+    auto [tt_score, tt_move] = tt.probe(board.hash_key, 0, alpha, beta);
+    if (tt_score != INT32_MAX) {
+        return tt_score;
     }
 
     int eval_score = evaluate(board);
@@ -231,9 +232,11 @@ int Searcher::quiscence(Board &board, int alpha, int beta) {
     std::vector<Move> move_list;
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
-    sort_moves(board, move_list);
-    if (move_list[0] != pv[ply]) {
-        follow_pv = false;
+    sort_moves(board, move_list, tt_move);
+    if (move_list.size() > 0) {
+        if (move_list[0] != pv[ply]) {
+            follow_pv = false;
+        }
     }
 
     for (Move move : move_list) {
@@ -251,8 +254,10 @@ int Searcher::quiscence(Board &board, int alpha, int beta) {
         unmake_move(board, move, state_stack.back());
         state_stack.pop_back();
 
-        if (*settings.stopped == true) {
-            return 0;
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                return 0;
+            }
         }
 
         if (score >= beta) {
@@ -283,43 +288,48 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         settings.checkup();
     }
 
-    // debug info
     nodes++;
     ply++;
 
     AlphaBeta hash_flag = AlphaBeta::Alpha;
-    int score;
-    if (ply > 0 && (score = tt.probe(board.hash_key, depth, alpha, beta)) != INT32_MAX) {
-        ply--;
-        return score;
+
+    Move tt_move = Move(0);
+    if (ply > 0) {
+        auto [tt_score, tt_move] = tt.probe(board.hash_key, depth, alpha, beta);
+        if (tt_score != INT32_MAX) {
+            ply--;
+            return tt_score;
+        }
     }
 
     if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
         state_stack.push_back(IrreversableState(board, Move(0)));
         make_null_move(board);
+        null_moved = true;
         int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
-
+        null_moved = false;
         unmake_null_move(board, state_stack.back());
         state_stack.pop_back();
         if (score >= beta) {
-            null_moved = true;
             ply--;
             return beta;
         }
     }
-    null_moved = false;
 
     std::vector<Move> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
-    sort_moves(board, move_list);
-    if (move_list[0] != pv[ply]) {
-        follow_pv = false;
+    sort_moves(board, move_list, tt_move);
+    if (move_list.size() > 0) {
+        if (move_list[0] != pv[ply]) {
+            follow_pv = false;
+        }
     }
 
     bool legal_moves = false;
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
     int moves_searched = -1;
+    int score;
 
     for (Move move : move_list) {
         //Board new_board = board;
@@ -364,13 +374,16 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         unmake_move(board, move, state_stack.back());
         state_stack.pop_back();
 
-        if (*settings.stopped == true) {
-            return 0;
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                ply--;
+                return 0;
+            }
         }
 
         if (score >= beta) {
             // fail high
-            tt.set(board.hash_key, depth, beta, board.ply() - ply, AlphaBeta::Beta);
+            tt.set(board.hash_key, move, depth, beta, board.ply() - ply, AlphaBeta::Beta);
 
             if (!move.get_capture_flag()) {
                 killer_moves[1][ply] = killer_moves[0][ply];
@@ -412,14 +425,14 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     if (!legal_moves) {
         if (is_king_exposed(board, board.turn)) {
             // checkmake
-            return MIN_SCORE + 1000 + board.move;
+            return MIN_SCORE + 1000 + board.move;  // use board.move instead of ply
         } else {
             // stalemate
             return 0;
         }
     }
 
-    tt.set(board.hash_key, depth, alpha, board.ply() - ply, hash_flag);
+    tt.set(board.hash_key, pv[pv_index], depth, alpha, board.ply() - ply, hash_flag);
     return alpha;
 }
 
@@ -432,7 +445,7 @@ Move Searcher::negamax(Board &board, int depth) {
     int score = 0;
     
 
-    const int window = 50;
+    const int window = 75;
     bool failed_low = false;
     bool failed_high = false;
 
@@ -448,9 +461,10 @@ Move Searcher::negamax(Board &board, int depth) {
             printf("depth: %d score: %d alpha: %d beta: %d\n", current_depth, score, alpha, beta);
         }
 
-
-        if (*settings.stopped == true) {
-            break;
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                break;
+            }
         }
 
         if (score <= alpha) {
@@ -496,6 +510,7 @@ Searcher::Searcher(long long time) {
 }
 
 void Searcher::move_reset() {
+    search_repititions.clear();
     pv = {};
     killer_moves = {};
     null_moved = false;
@@ -504,6 +519,7 @@ void Searcher::move_reset() {
 }
 
 void Searcher::reset() {
+    real_repititions.clear();
     state_stack.clear();
     settings = Settings();
     history_moves = {};

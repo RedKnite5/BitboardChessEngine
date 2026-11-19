@@ -155,7 +155,7 @@ class Board {
         return move * 2 + !turn;
     }
 
-    constexpr uint64_t zHash() const;
+    uint64_t zHash() const;
     bool make_move(Move move);
 };
 

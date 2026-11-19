@@ -951,7 +951,7 @@ constexpr int ep_index_calc(Square sq) {
     }
 }
 
-constexpr U64 Board::zHash() const {
+U64 Board::zHash() const {
     U64 hash = castle_keys[this->castleFlags];
 
     for (Piece piece=p; piece <= K; ++piece) {

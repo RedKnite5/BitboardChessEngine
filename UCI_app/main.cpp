@@ -240,6 +240,10 @@ void UCI_loop() {
                 t1.join();
             }
             game.board = parse_position(input);
+
+            // the operator[] inserts 0 if not present
+            uint8_t &rep_count = game.S.real_repititions[game.board.zHash()];
+            rep_count++;
         }
 
         if (input.starts_with("ucinewgame")) {
@@ -332,9 +336,9 @@ c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 
     -engine cmd=./UCI_app
 
 
-c-chess-cli_linux -sprt -games 20 -each tc=20+.5 option."Move Overhead"=500 \
+c-chess-cli_linux -sprt elo1=10 -games 100 -concurrency 10 -each tc=10+.5 \
     -engine name=base cmd=./Engine_base \
-    -engine name=age cmd=./Engine_with_age
+    -engine name=unmake cmd=./Engine_unmake
 
 
 Score of base vs age: 3 - 4 - 13  [0.475] 20
@@ -344,5 +348,12 @@ SPRT: LLR = -0.037 [-2.944,2.944]
 // After TT age and unmake_move
 Score of Stockfish 19 vs RED: 5 - 2 - 3  [0.650] 10
 SPRT: LLR = 0.056 [-2.944,2.944]
+
+Score of Stockfish 19 vs RED: 61 - 24 - 15  [0.685] 100
+SPRT: LLR = 1.435 [-2.944,2.944]
+
+// base (before TT age and unmake_moves)
+Score of Stockfish 19 vs RED: 13 - 4 - 3  [0.725] 20
+SPRT: LLR = 0.158 [-2.944,2.944]
 
 */

@@ -69,6 +69,7 @@ notes_on_testing.txt
 .cache/
 
 .clangd
+.gdbinit
 
 # MinGW generated files
 *.Debug

@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <atomic>
 
@@ -38,11 +40,11 @@ struct TTEntry {
 constexpr int MB_TT = 1024*1024 / sizeof(TTEntry);
 
 struct TT {
-    static const int TableSize = 1*MB_TT;
+    static const int TableSize = 2*MB_TT;
     TTEntry tt[TableSize] = {};
 
-    int32_t probe(uint64_t key, int depth, int alpha, int beta) const;
-    void set(uint64_t key, int depth, int value, int ply, AlphaBeta flags);
+    std::pair<int32_t, Move> probe(uint64_t key, int depth, int alpha, int beta) const;
+    void set(uint64_t key, Move best, int depth, int value, int ply, AlphaBeta flags);
 
     TT() = default;
 
@@ -68,6 +70,9 @@ class Searcher {
   public:
     TT tt;
 
+    std::unordered_map<uint64_t, uint8_t> real_repititions = {};
+    std::unordered_set<uint64_t> search_repititions = {};
+
     std::vector<IrreversableState> state_stack = {};
     Settings settings;
     long long nodes = 0;
@@ -85,8 +90,8 @@ class Searcher {
     Searcher() = default;
     Searcher(long long time);
 
-    int score_move(const Board &board, Move move) const;
-    void sort_moves(const Board &board, std::vector<Move> &move_list) const;
+    int score_move(const Board &board, Move move, Move tt_move) const;
+    void sort_moves(const Board &board, std::vector<Move> &move_list, Move tt_move) const;
     void move_reset();
 
     int quiscence(Board &board, int alpha, int beta);
