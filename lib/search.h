@@ -58,6 +58,7 @@ struct TT {
 };
 
 struct Settings {
+    long long start_time = 0;
     long long stop_time = 0;
     std::atomic<bool> *stopped = nullptr;
     bool time_set = false;

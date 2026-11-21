@@ -8,6 +8,7 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <algorithm>
 
 #include "search.h"
 #include "board.h"
@@ -25,9 +26,9 @@ void run_engine(Game &game, atomic<bool> *stopped) {
 
     // the operator[] inserts 0 if not present
     uint8_t &rep_count = game.S.real_repititions[game.board.hash_key];
-    rep_count++;
+    ++rep_count;
 
-    Move return_move = game.S.negamax(game.board, 10);
+    Move return_move = game.S.negamax(game.board, 20);
     game.S.move_reset();
     printf("bestmove %s\n", return_move.format_uci().data());
 
@@ -38,7 +39,7 @@ void run_engine(Game &game, atomic<bool> *stopped) {
     game.board.make_move(return_move);
 
     uint8_t &rep_count_after = game.S.real_repititions[game.board.hash_key];
-    rep_count_after++;
+    ++rep_count_after;
 }
 
 
@@ -105,7 +106,7 @@ Board parse_position(string_view s) {
         }
         i++;
 
-        printf("source: %s, dest: %s\n", square_coords[source_sq], square_coords[dest_sq]);
+        //printf("source: %s, dest: %s\n", square_coords[source_sq], square_coords[dest_sq]);
 
         generate_moves(board, move_list);
         Move userMove = findUserMoveUnambiguous(source_sq, dest_sq, promotion, move_list);
@@ -203,6 +204,8 @@ int parse_go(string s, bool color) {
         if (winc != -1) {
             total_time += winc;
         }
+
+        total_time = min(total_time, int(wtime*.8));
     } else {
         if (btime != -1) {
             total_time += btime;
@@ -217,7 +220,10 @@ int parse_go(string s, bool color) {
         if (binc != -1) {
             total_time += binc;
         }
+
+        total_time = min(total_time, int(btime*.8));
     }
+
 
     return total_time;
 }
@@ -277,6 +283,7 @@ void UCI_loop() {
                 game.S.settings.time_set = true;
                 start_time = current_time_us();
                 stop_time = start_time + time;
+                game.S.settings.start_time = start_time;
                 game.S.settings.stop_time = stop_time;
             }
 
@@ -336,22 +343,21 @@ c-chess-cli_linux -sprt elo1=10 -games 10 -concurrency 10 -log -each tc=20+.5 op
     -engine cmd=./UCI_app
 
 
-Score of RED vs Stockfish 19: 4 - 3 - 3  [0.550] 10
-SPRT: LLR = 0.016 [-2.944,2.944]
-
-
 c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
     -engine cmd=./UCI_app
 
 
-c-chess-cli_linux -sprt elo1=10 -games 100 -concurrency 10 -each tc=10+.5 \
-    -engine name=base cmd=./Engine_base \
-    -engine name=unmake cmd=./Engine_unmake
+c-chess-cli_linux -sprt elo1=10 -games 500 -concurrency 10 -each tc=10+.5 \
+    -engine name=reps_no_debug cmd=./Engine_reps_no_debug \
+    -engine name=O3 cmd=./Engine_reps_O3
 
 
 Score of base vs age: 3 - 4 - 13  [0.475] 20
 SPRT: LLR = -0.037 [-2.944,2.944]
+
+Score of best vs repetitions: 90 - 24 - 50  [0.701] 164
+SPRT: LLR = 3.435 [-2.944,2.944]. H1 accepted.
 
 
 // After TT age and unmake_move

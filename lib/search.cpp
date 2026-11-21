@@ -341,43 +341,44 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
             continue;
         }
         moves_searched++;
+        legal_moves = true;
 
+        bool draw = false;
         if (real_repititions.contains(board.hash_key)) {
             uint8_t count = real_repititions[board.hash_key];
             if (count == 2 || search_repititions.contains(board.hash_key)) {
-                unmake_move(board, move, state_stack.back());
-                state_stack.pop_back();
-                ply--;
-                return 0;
+                score = 0;
+                draw = true;
             }
         }
-        search_repititions.insert(board.hash_key);
 
-        legal_moves = true;
+        if (!draw) {
+            search_repititions.insert(board.hash_key);
 
-        // Principal Variation Search and LMR
-        // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
-        // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
-        if (moves_searched == 0) {
-            score = -negamax_rec(board, -beta, -alpha, depth-1);
-        } else {
-            // should also look for check and maybe some other stuff
-            bool okay_to_reduce = moves_searched > full_depth_moves
-                && depth > reduction_limit
-                && !move.get_capture_flag()
-                && !move.get_promotion()
-                && move != killer_moves[0][ply]
-                && move != killer_moves[1][ply];
-            if (okay_to_reduce) {
-                score = -negamax_rec(board, -alpha-1, -alpha, depth-2);
+            // Principal Variation Search and LMR
+            // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
+            // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
+            if (moves_searched == 0) {
+                score = -negamax_rec(board, -beta, -alpha, depth-1);
             } else {
-                // Hack to ensure that full-depth search is done
-                score = alpha + 1;
-            }
-            if (score > alpha) {
-                score = -negamax_rec(board, -alpha-1, -alpha, depth-1);
-                if (score > alpha && score < beta) {
-                    score = -negamax_rec(board, -beta, -alpha, depth-1);
+                // should also look for check and maybe some other stuff
+                bool okay_to_reduce = moves_searched > full_depth_moves
+                    && depth > reduction_limit
+                    && !move.get_capture_flag()
+                    && !move.get_promotion()
+                    && move != killer_moves[0][ply]
+                    && move != killer_moves[1][ply];
+                if (okay_to_reduce) {
+                    score = -negamax_rec(board, -alpha-1, -alpha, depth-2);
+                } else {
+                    // Hack to ensure that full-depth search is done
+                    score = alpha + 1;
+                }
+                if (score > alpha) {
+                    score = -negamax_rec(board, -alpha-1, -alpha, depth-1);
+                    if (score > alpha && score < beta) {
+                        score = -negamax_rec(board, -beta, -alpha, depth-1);
+                    }
                 }
             }
         }
@@ -455,16 +456,17 @@ Move Searcher::negamax(Board &board, int depth) {
     int beta = MAX_SCORE;
     follow_pv = true;
     int score = 0;
-    
 
-    const int window = 75;
+    const int window = 100;
     bool failed_low = false;
     bool failed_high = false;
 
     int current_depth = 1;
     while (current_depth <= depth) {
 
-        printf("info depth %d score cp %d nodes %lld ", current_depth, score, nodes);
+        printf("info depth %d score cp %d nodes %lld time %lld ",
+            current_depth, score, nodes, (current_time_us() - settings.start_time) / 1000
+        );
         print_pv(pv);
         printf("\n");
 

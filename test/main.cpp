@@ -4,9 +4,8 @@
 #include <unordered_map>
 #include <random>
 
-
-#include "board.cpp"
 #include "board.h"
+#include "board.cpp"
 
 
 long driver(Board &board, int depth) {
@@ -896,6 +895,9 @@ TEST(EP_IndexCalc, A6) {
 TEST(EP_IndexCalc, H6) {
     EXPECT_EQ(ep_index_calc(H6), 15);
 }
+
+
+
 
 
 /*
