@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -8,9 +9,11 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <algorithm>
 
 #include "search.h"
 #include "board.h"
+
 
 using namespace std;
 
@@ -18,13 +21,35 @@ const char *name = "RED";
 
 
 
-void run_engine(Game &game, atomic<bool> *stopped, Move &return_move) {
+void run_engine(Game &game, atomic<bool> *stopped) {
     game.S.settings.set_stopped_ptr(stopped);
     // printf("starting search on this board:\n");
     // printBoard(game.board);
-    return_move = game.S.negamax(game.board, 10);
+
+    // the operator[] inserts 0 if not present
+    uint8_t &rep_count = game.S.real_repititions[game.board.hash_key];
+    ++rep_count;
+
+    Move return_move = game.S.negamax(game.board, 20);
     game.S.move_reset();
     printf("bestmove %s\n", return_move.format_uci().data());
+
+    if (return_move.get_capture_flag() || return_move.get_move_piece() == p || return_move.get_move_piece() == P) {
+        game.S.real_repititions.clear();
+    }
+
+    game.board.make_move(return_move);
+
+    uint8_t &rep_count_after = game.S.real_repititions[game.board.hash_key];
+    ++rep_count_after;
+
+    // uint32_t total_cutoffs = 0;
+    // printf("cutoffs: [");
+    // for (size_t i = 0; i <= game.S.cutoffs.size(); ++i) {
+    //     printf("%u, ", game.S.cutoffs[i]);
+    //     total_cutoffs += game.S.cutoffs[i];
+    // }
+    // printf("]\ntotal: %u first moves ratio: %f\n", total_cutoffs, float(game.S.cutoffs[0]) / float(total_cutoffs));
 }
 
 
@@ -91,7 +116,7 @@ Board parse_position(string_view s) {
         }
         i++;
 
-        printf("source: %s, dest: %s\n", square_coords[source_sq], square_coords[dest_sq]);
+        //printf("source: %s, dest: %s\n", square_coords[source_sq], square_coords[dest_sq]);
 
         generate_moves(board, move_list);
         Move userMove = findUserMoveUnambiguous(source_sq, dest_sq, promotion, move_list);
@@ -189,6 +214,8 @@ int parse_go(string s, bool color) {
         if (winc != -1) {
             total_time += winc;
         }
+
+        total_time = min(total_time, static_cast<int>(wtime*.8));
     } else {
         if (btime != -1) {
             total_time += btime;
@@ -203,7 +230,10 @@ int parse_go(string s, bool color) {
         if (binc != -1) {
             total_time += binc;
         }
+
+        total_time = min(total_time, static_cast<int>(btime*.8));
     }
+
 
     return total_time;
 }
@@ -216,7 +246,6 @@ void UCI_loop() {
 
     Game game;
     atomic<bool> stopped = false;
-    Move engine_move = Move(0);
 
     std::thread t1;
 
@@ -246,7 +275,7 @@ void UCI_loop() {
             if (t1.joinable()) {
                 t1.join();
             }
-            game = Game();
+            game.reset();
             game.board = parse_position("position startpos");
         }
 
@@ -264,10 +293,11 @@ void UCI_loop() {
                 game.S.settings.time_set = true;
                 start_time = current_time_us();
                 stop_time = start_time + time;
+                game.S.settings.start_time = start_time;
                 game.S.settings.stop_time = stop_time;
             }
 
-            t1 = thread(run_engine, ref(game), &stopped, ref(engine_move));
+            t1 = thread(run_engine, ref(game), &stopped);
         }
 
         if (input == "stop" || (stop_time != 0 && stop_time <= current_time_us())) {
@@ -303,9 +333,6 @@ void UCI_loop() {
 
 
 int main(int argc, char **argv) {
-    //generate_attack_table_h_file();
-
-
     UCI_loop();
 }
 
@@ -319,22 +346,37 @@ c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine cmd=./UCI_app \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
 
-c-chess-cli_linux -sprt -games 10 -log -each tc=20+.5 option."Move Overhead"=500 \
+c-chess-cli_linux -sprt elo1=10 -games 10 -concurrency 10 -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
     -engine cmd=./UCI_app
 
 
-Score of RED vs Stockfish 19: 4 - 3 - 3  [0.550] 10
-SPRT: LLR = 0.016 [-2.944,2.944]
+c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
+    -engine cmd=./UCI_app
 
 
-
-c-chess-cli_linux -sprt -games 20 -each tc=20+.5 option."Move Overhead"=500 \
-    -engine name=base cmd=./Engine_base \
-    -engine name=age cmd=./Engine_with_age
+c-chess-cli_linux -sprt elo1=10 -games 500 -concurrency 10 -each tc=10+.5 \
+    -engine name=pesto_aspiration cmd=./pesto_aspiration \
+    -engine name=Pesto cmd=./pesto
 
 
 Score of base vs age: 3 - 4 - 13  [0.475] 20
 SPRT: LLR = -0.037 [-2.944,2.944]
+
+Score of best vs repetitions: 90 - 24 - 50  [0.701] 164
+SPRT: LLR = 3.435 [-2.944,2.944]. H1 accepted.
+
+
+// After TT age and unmake_move
+Score of Stockfish 19 vs RED: 5 - 2 - 3  [0.650] 10
+SPRT: LLR = 0.056 [-2.944,2.944]
+
+Score of Stockfish 19 vs RED: 61 - 24 - 15  [0.685] 100
+SPRT: LLR = 1.435 [-2.944,2.944]
+
+// base (before TT age and unmake_moves)
+Score of Stockfish 19 vs RED: 13 - 4 - 3  [0.725] 20
+SPRT: LLR = 0.158 [-2.944,2.944]
 
 */

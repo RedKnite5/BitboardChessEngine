@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 #include <time.h>
 
@@ -150,14 +151,14 @@ void MainWindow::engineTurn(int int_move) {
     move.print_move();
     // need to test stalemate detenction more 5/11/26
 
-    bool king_safe = game.board.make_move(move);
+    bool king_safe = game->board.make_move(move);
 
     if (move == Move(0)) {
         king_safe = 0;
     }
 
     if (!king_safe) {
-        if (is_king_exposed(game.board, !player_color)) {
+        if (is_king_exposed(game->board, !player_color)) {
             printf("Checkmate! You win!\n");
         } else {
             printf("Stalemate!\n");
@@ -192,12 +193,12 @@ void MainWindow::engineTurn(int int_move) {
     highlight(source);
     highlight(dest);
     
-    Board b = game.board;
+    Board b = game->board;
     Searcher S;
     Move pot_user_move = S.negamax(b, 1);
     bool user_has_legal_moves = b.make_move(pot_user_move);
     if (!user_has_legal_moves) {
-        if (is_king_exposed(game.board, player_color)) {
+        if (is_king_exposed(game->board, player_color)) {
             printf("Checkmate! I Win!\n");
         } else {
             printf("Stalemate!\n");
@@ -257,7 +258,7 @@ void MainWindow::makePopup(DraggableLabel *dest, std::function<void(int)> callba
 
 void MainWindow::getPlayerMove(GuiMove guimove) {
     std::vector<Move> move_list;
-    generate_moves(game.board, move_list);
+    generate_moves(game->board, move_list);
 
     int userSource = guimove.source->row * 8 + guimove.source->col;
     int userDest = guimove.dest->row * 8 + guimove.dest->col;
@@ -286,12 +287,12 @@ void MainWindow::playerMove(Move move, int promotion, GuiMove guimove) {
     if (prom_move) {
         // user move is psuedolegal!
 
-        Board new_board = game.board;
+        Board new_board = game->board;
         bool king_safe = new_board.make_move(prom_move);
         if (king_safe) {
             // user move is legal!
 
-            game.board = new_board;
+            game->board = new_board;
 
             if (promotion) {
                 setPieceImage(promotion, guimove.dest);
@@ -396,8 +397,9 @@ void setupPieces(std::array<int, 64> &board, Board &bitboard) {
     }
 }
 
+//Q_DECLARE_METATYPE(std::shared_ptr<Game>)
 
-MainWindow::MainWindow(Game &aGame, int aDepth, QWidget *parent)
+MainWindow::MainWindow(std::shared_ptr<Game> aGame, int aDepth, QWidget *parent)
     : QMainWindow(parent),
     game(aGame),
     ui(new Ui::MainWindow)
@@ -419,10 +421,10 @@ MainWindow::MainWindow(Game &aGame, int aDepth, QWidget *parent)
         qWarning("Grid layout widget not found in the UI.");
     }
 
-    setupPieces(board, game.board);
+    setupPieces(board, game->board);
     updatePieceImages(board, squares);
 
-    qRegisterMetaType<Game>();
+    qRegisterMetaType<std::shared_ptr<Game>>();
 
     thread = new QThread(this);
     EngineWorker *worker = new EngineWorker;

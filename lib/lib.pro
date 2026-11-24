@@ -8,12 +8,12 @@ CONFIG += c++20
 #CONFIG += debug
 
 QMAKE_CXXFLAGS += -fconstexpr-ops-limit=100000000  # 100 million
-QMAKE_CXXFLAGS += -g
+#QMAKE_CXXFLAGS += -g
 
 QMAKE_CXXFLAGS += -std=c++20
-QMAKE_CXXFLAGS_RELEASE += -O2 -flto=auto -fuse-linker-plugin -ffat-lto-objects
-QMAKE_CFLAGS_RELEASE   += -O2 -flto=auto -fuse-linker-plugin -ffat-lto-objects
-QMAKE_LFLAGS_RELEASE   += -O2 -flto=auto -fuse-linker-plugin
+QMAKE_CXXFLAGS_RELEASE += -O3 -flto=auto -fuse-linker-plugin -ffat-lto-objects
+QMAKE_CFLAGS_RELEASE   += -O3 -flto=auto -fuse-linker-plugin -ffat-lto-objects
+QMAKE_LFLAGS_RELEASE   += -O3 -flto=auto -fuse-linker-plugin
 
 RESOURCES += resources.qrc
 
@@ -22,7 +22,8 @@ SOURCES += \
     draggable.cpp \
     board.cpp \
     search.cpp \
-    engine_worker.cpp 
+    engine_worker.cpp \
+    pesto_eval.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -30,7 +31,9 @@ HEADERS += \
     board.h \
     attack_tables.h \
     search.h \
-    engine_worker.h 
+    engine_worker.h \
+    pesto_eval.h \
+    evaluation_tables.h
 
 FORMS += \
     mainwindow.ui

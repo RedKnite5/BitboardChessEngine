@@ -1,20 +1,24 @@
-#include "mainwindow.h"
+//#include "mainwindow.h"
 
 #include <QApplication>
 
-
+#include <cstddef>
 #include <cstdint>
 #include <time.h>
 #include <math.h>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
-#include "board.h"
+#include <algorithm>
 
+#include "board.h"
+#include "pesto_eval.h"
 #include "search.h"
 
 constexpr bool DEBUG = false;
+//constexpr bool USE_TT = true;
 
 long long current_time_us() {
     struct timespec ts;
@@ -71,7 +75,6 @@ void time_driver() {
         tot_time += durations[d];
     }
 
-    
     long long mean = tot_time / iterations;
 
     printf("\nMean: %lld us\n", mean);
@@ -116,7 +119,6 @@ void perft_correctness() {
 
         printf("Nodes: %10lld    Time: %lld ms\n", node_counts[i], durations[i] / 1000);
     }
-
 }
 
 void print_pv(const std::array<Move, PV_SIZE> &pv) {
@@ -129,39 +131,47 @@ void print_pv(const std::array<Move, PV_SIZE> &pv) {
     }
 }
 
-int32_t TT::probe(uint64_t key, int depth, int alpha, int beta) const {
-    //return INT32_MAX;
+std::pair<int32_t, Move> TT::probe(uint64_t key, int depth, int alpha, int beta) const {
+    //return INT32_MAX;  // sentinal value to mean value unknown
     TTEntry const *entry = &tt[key % TT::TableSize];
-    if (key >> 32 != entry->key || depth > entry->depth) {
-        return INT32_MAX;  // sentinal value to mean value unknown
+    if (key >> 32 != entry->key) {
+        return std::make_pair(INT32_MAX, Move(0));
+    }
+
+    if (depth > entry->depth) {
+        return std::make_pair(INT32_MAX, Move(entry->best));
     }
 
     if (entry->flags == AlphaBeta::Exact) {
-        return entry->value;
+        return std::make_pair(entry->value, Move(entry->best));
     }
     if (entry->flags == AlphaBeta::Alpha && entry->value <= alpha) {
-        return alpha;
+        return std::make_pair(alpha, Move(entry->best));
     }
     if (entry->flags == AlphaBeta::Beta && entry->value >= beta) {
-        return beta;
+        return std::make_pair(beta, Move(entry->best));
     }
 
-    return INT32_MAX;
+    return std::make_pair(INT32_MAX, Move(0));
 }
 
-// TODO: add age to prevent entries from previous searches being kept at the
-// expense of entries relevant to current search
-void TT::set(uint64_t key, int depth, int value, AlphaBeta flags) {
+void TT::set(uint64_t key, Move best, int depth, int value, int ply, AlphaBeta flags) {
     TTEntry *entry = &tt[key % TT::TableSize];
 
-    if (depth < entry->depth) {
+    if (depth < entry->depth && ply == entry->root_ply) {
         return;
     }
 
     entry->key = key >> 32;
     entry->value = value;
+    entry->best = best;
     entry->depth = depth;
+    entry->root_ply = ply;
     entry->flags = flags;
+}
+
+void TT::reset() {
+    memset(tt, 0, TableSize*sizeof(TTEntry));
 }
 
 void Settings::checkup() {
@@ -174,8 +184,8 @@ void Settings::set_stopped_ptr(std::atomic<bool> *aStopped) {
     stopped = aStopped;
 }
 
-int Searcher::score_move(const Board &board, Move move) const {
-    if (follow_pv && pv[ply] == move) {
+int Searcher::score_move(const Board &board, Move move, Move tt_move) const {
+    if (move == tt_move || (follow_pv && pv[ply] == move)) {
         return 100000;
     }
 
@@ -194,35 +204,24 @@ int Searcher::score_move(const Board &board, Move move) const {
     return 0;
 }
 
-void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list) const {
-    std::ranges::sort(move_list, {}, [this, &board](Move move){ return -score_move(board, move); });
+void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list, Move tt_move) const {
+    std::ranges::sort(move_list, {}, [this, &board, tt_move](Move move){ return -score_move(board, move, tt_move); });
 }
 
-void Searcher::move_reset() {
-    pv = {};
-    killer_moves = {};
-    null_moved = false;
-    nodes = 0;
-    ply = -1;
-}
-
-
-int Searcher::quiscence(const Board &board, int alpha, int beta) {
-    
+int Searcher::quiscence(Board &board, int alpha, int beta) {
     if ((nodes & 2047) == 0) {
         settings.checkup();
     }
-    
-    
-    // debug info
+
     nodes++;
 
-    int score;
-    if ((score = tt.probe(board.hash_key, 0, alpha, beta)) != INT32_MAX) {
-        return score;
+    auto [tt_score, tt_move] = tt.probe(board.hash_key, 0, alpha, beta);
+    if (tt_score != INT32_MAX) {
+        return tt_score;
     }
 
-    int eval_score = evaluate(board);
+    //int eval_score = evaluate(board);
+    int eval_score = pesto_eval(board);
 
     if (eval_score >= beta) {
         // fail high
@@ -238,22 +237,32 @@ int Searcher::quiscence(const Board &board, int alpha, int beta) {
     std::vector<Move> move_list;
     move_list.reserve(32);
     generate_capture_moves(board, move_list);
-    sort_moves(board, move_list);
-    if (move_list[0] != pv[ply]) {
-        follow_pv = false;
+    sort_moves(board, move_list, tt_move);
+    if (move_list.size() > 0) {
+        if (move_list[0] != pv[ply]) {
+            follow_pv = false;
+        }
     }
 
     for (Move move : move_list) {
-        Board new_board = board;
-        bool king_safe = new_board.make_move(move);
+        //Board new_board = board;
+        state_stack.push_back(IrreversableState(board, move));
+        bool king_safe = board.make_move(move);
         if (!king_safe) {
+            unmake_move(board, move, state_stack.back());
+            state_stack.pop_back();
             continue;
         }
 
-        int score = -quiscence(new_board, -beta, -alpha);
+        int score = -quiscence(board, -beta, -alpha);
 
-        if (*settings.stopped == true) {
-            return 0;
+        unmake_move(board, move, state_stack.back());
+        state_stack.pop_back();
+
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                return 0;
+            }
         }
 
         if (score >= beta) {
@@ -284,91 +293,125 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         settings.checkup();
     }
 
-    // debug info
     nodes++;
     ply++;
 
     AlphaBeta hash_flag = AlphaBeta::Alpha;
-    int score;
-    if (ply > 0 && (score = tt.probe(board.hash_key, depth, alpha, beta)) != INT32_MAX) {
-        ply--;
-        return score;
+
+    Move tt_move = Move(0);
+    if (ply > 0) {
+        auto [tt_score, tt_move] = tt.probe(board.hash_key, depth, alpha, beta);
+        if (tt_score != INT32_MAX) {
+            ply--;
+            return tt_score;
+        }
     }
 
     if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
+        state_stack.push_back(IrreversableState(board, Move(0)));
         make_null_move(board);
+        null_moved = true;
         int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
-
-        unmake_null_move(board);
+        null_moved = false;
+        unmake_null_move(board, state_stack.back());
+        state_stack.pop_back();
         if (score >= beta) {
-            null_moved = true;
             ply--;
             return beta;
         }
     }
-    null_moved = false;
 
     std::vector<Move> move_list;
     move_list.reserve(32);
     generate_moves(board, move_list);
-    sort_moves(board, move_list);
-    if (move_list[0] != pv[ply]) {
-        follow_pv = false;
+    sort_moves(board, move_list, tt_move);
+    if (move_list.size() > 0) {
+        if (move_list[0] != pv[ply]) {
+            follow_pv = false;
+        }
     }
 
     bool legal_moves = false;
     unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
     int moves_searched = -1;
+    int score;
 
-    for (Move move : move_list) {
-        Board new_board = board;
-        bool king_safe = new_board.make_move(move);
+    for (size_t i=0; i<move_list.size(); ++i) {
+        Move move = move_list[i];
+
+        //Board new_board = board;
+        state_stack.push_back(IrreversableState(board, move));
+        bool king_safe = board.make_move(move);
         if (!king_safe) {
+            unmake_move(board, move, state_stack.back());
+            state_stack.pop_back();
             continue;
         }
         moves_searched++;
-
         legal_moves = true;
 
-        // Principal Variation Search and LMR
-        // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
-        // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
-        if (moves_searched == 0) {
-            score = -negamax_rec(new_board, -beta, -alpha, depth-1);
-        } else {
-            // should also look for check and maybe some other stuff
-            bool okay_to_reduce = moves_searched > full_depth_moves
-                && depth > reduction_limit
-                && !move.get_capture_flag()
-                && !move.get_promotion()
-                && move != killer_moves[0][ply]
-                && move != killer_moves[1][ply];
-            if (okay_to_reduce) {
-                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-2);
-            } else {
-                // Hack to ensure that full-depth search is done
-                score = alpha + 1;
+        bool draw = false;
+        if (real_repititions.contains(board.hash_key)) {
+            uint8_t count = real_repititions[board.hash_key];
+            if (count == 2 || search_repititions.contains(board.hash_key)) {
+                score = 0;
+                draw = true;
             }
-            if (score > alpha) {
-                score = -negamax_rec(new_board, -alpha-1, -alpha, depth-1);
-                if (score > alpha && score < beta) {
-                    score = -negamax_rec(new_board, -beta, -alpha, depth-1);
+        }
+
+        if (!draw) {
+            search_repititions.insert(board.hash_key);
+
+            // Principal Variation Search and LMR
+            // https://web.archive.org/web/20070928033644/http://www.brucemo.com/compchess/programming/pvs.htm
+            // https://web.archive.org/web/20150212051846/http://www.glaurungchess.com/lmr.html
+            if (moves_searched == 0) {
+                score = -negamax_rec(board, -beta, -alpha, depth-1);
+            } else {
+                // should also look for check and maybe some other stuff
+                bool okay_to_reduce = moves_searched > full_depth_moves
+                    && depth > reduction_limit
+                    && !move.get_capture_flag()
+                    && !move.get_promotion()
+                    && move != killer_moves[0][ply]
+                    && move != killer_moves[1][ply];
+                if (okay_to_reduce) {
+                    score = -negamax_rec(board, -alpha-1, -alpha, depth-2);
+                } else {
+                    // Hack to ensure that full-depth search is done
+                    score = alpha + 1;
+                }
+                if (score > alpha) {
+                    score = -negamax_rec(board, -alpha-1, -alpha, depth-1);
+                    if (score > alpha && score < beta) {
+                        score = -negamax_rec(board, -beta, -alpha, depth-1);
+                    }
                 }
             }
         }
 
-        if (*settings.stopped == true) {
-            return 0;
+        unmake_move(board, move, state_stack.back());
+        state_stack.pop_back();
+        search_repititions.erase(board.hash_key);
+
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                ply--;
+                return 0;
+            }
         }
 
         if (score >= beta) {
             // fail high
-            tt.set(board.hash_key, depth, beta, AlphaBeta::Beta);
+            tt.set(board.hash_key, move, depth, beta, board.ply() - ply, AlphaBeta::Beta);
 
             if (!move.get_capture_flag()) {
                 killer_moves[1][ply] = killer_moves[0][ply];
                 killer_moves[0][ply] = move;
             }
+
+            // measure cutoffs for testing purposes
+            //cutoffs[std::min(i, cutoffs.size()-1)]++;
 
             ply--;
             return beta;
@@ -405,14 +448,14 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     if (!legal_moves) {
         if (is_king_exposed(board, board.turn)) {
             // checkmake
-            return MIN_SCORE + 1000 + board.move;
+            return MIN_SCORE + 1000 + board.move;  // use board.move instead of ply
         } else {
             // stalemate
             return 0;
         }
     }
 
-    tt.set(board.hash_key, depth, alpha, hash_flag);
+    tt.set(board.hash_key, pv[pv_index], depth, alpha, board.ply() - ply, hash_flag);
     return alpha;
 }
 
@@ -423,27 +466,28 @@ Move Searcher::negamax(Board &board, int depth) {
     int beta = MAX_SCORE;
     follow_pv = true;
     int score = 0;
-    
 
-    const int window = 50;
+    const int window = 100;
     bool failed_low = false;
     bool failed_high = false;
 
     int current_depth = 1;
     while (current_depth <= depth) {
+        score = negamax_rec(board, alpha, beta, current_depth);
+        if (DEBUG) {
+            printf("alpha: %d beta: %d\n", alpha, beta);
+        }
 
-        printf("info depth %d score cp %d nodes %lld ", current_depth, score, nodes);
+        printf("info depth %d score cp %d nodes %lld time %lld ",
+            current_depth, score, nodes, (current_time_us() - settings.start_time) / 1000
+        );
         print_pv(pv);
         printf("\n");
 
-        score = negamax_rec(board, alpha, beta, current_depth);
-        if (DEBUG) {
-            printf("depth: %d score: %d alpha: %d beta: %d\n", current_depth, score, alpha, beta);
-        }
-
-
-        if (*settings.stopped == true) {
-            break;
+        if (settings.stopped != nullptr) {
+            if (*settings.stopped == true) {
+                break;
+            }
         }
 
         if (score <= alpha) {
@@ -488,59 +532,85 @@ Searcher::Searcher(long long time) {
     settings.stop_time = time;
 }
 
-Game::Game(const char *fen, long long time) {
+void Searcher::move_reset() {
+    search_repititions.clear();
+    pv = {};
+    killer_moves = {};
+    null_moved = false;
+    nodes = 0;
+    ply = -1;
+}
+
+void Searcher::reset() {
+    real_repititions.clear();
+    state_stack.clear();
+    settings = Settings();
+    history_moves = {};
+    follow_pv = false;
+    move_reset();
+    tt.reset();
+}
+
+void Game::reset() {
+    board = Board();
+    S.reset();
+}
+
+Game::Game(const char *fen, long long time) : S(time) {
     if (fen) {
         board = Board(fen);
     } else {
         board = Board();
     }
-    S = Searcher(time);
 }
 
 Game::Game(const char *fen) : Game(fen, 0) {}
 
-void play(const char *fen, int moves, int depth) {
-    Board board = Board(fen);
-    Searcher S;
-    printBoard(board);
+
+
+
+// void play(const char *fen, int moves, int depth) {
+//     Board board = Board(fen);
+//     Searcher S;
+//     printBoard(board);
     
-    for (int i = 0; i < moves; i++) {
-        //int look_ahead = 7;
-        int mult = -1;
-        if (board.turn) {
-            //look_ahead = 6;
-            mult = 1;
-        }
+//     for (int i = 0; i < moves; i++) {
+//         //int look_ahead = 7;
+//         int mult = -1;
+//         if (board.turn) {
+//             //look_ahead = 6;
+//             mult = 1;
+//         }
 
-        long long start = current_time_us();
-        Move move = S.negamax(board, depth);
-        //move = S.pv[0];
-        long long duration = current_time_us() - start;
+//         long long start = current_time_us();
+//         Move move = S.negamax(board, depth);
+//         //move = S.pv[0];
+//         long long duration = current_time_us() - start;
 
-        printf("\n\nTime: %lld ms\n", duration / 1000);
-        printf("Time: %lld s\n", duration / 1000000);
+//         printf("\n\nTime: %lld ms\n", duration / 1000);
+//         printf("Time: %lld s\n", duration / 1000000);
 
-        if (move) {
-            printf("move:\n");
-            move.print_move();
-            board.make_move(move);
-            printBoard(board);
-            int score = -evaluate(board);
-            printf("score: %d\n", score*mult);
-            printf("Nodes: %lld\n", S.nodes);
-            print_pv(S.pv);
-        } else {
-            printf("No moves!\n");
+//         if (move) {
+//             printf("move:\n");
+//             move.print_move();
+//             board.make_move(move);
+//             printBoard(board);
+//             int score = -evaluate(board);
+//             printf("score: %d\n", score*mult);
+//             printf("Nodes: %lld\n", S.nodes);
+//             print_pv(S.pv);
+//         } else {
+//             printf("No moves!\n");
 
-            if (is_king_exposed(board, board.turn)) {
-                printf("Checkmate!\n");
-            } else {
-                printf("Stalemate!\n");
-            }
-            break;
-        }
-    }
-}
+//             if (is_king_exposed(board, board.turn)) {
+//                 printf("Checkmate!\n");
+//             } else {
+//                 printf("Stalemate!\n");
+//             }
+//             break;
+//         }
+//     }
+// }
 
 
 //int main(int argc, char **argv) {

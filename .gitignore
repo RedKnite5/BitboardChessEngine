@@ -41,7 +41,7 @@ Thumbs.db
 /.qmake.cache
 /.qmake.stash
 *.log
-
+notes_on_testing.txt
 
 # qtcreator generated files
 *.pro.user*
@@ -69,6 +69,7 @@ Thumbs.db
 .cache/
 
 .clangd
+.gdbinit
 
 # MinGW generated files
 *.Debug

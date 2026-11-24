@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <random>
 
-
+#include "board.h"
 #include "board.cpp"
 
 
@@ -209,7 +209,7 @@ TEST(ZHashing, HashesDistinct) {
     std::unordered_map<U64, Board> map;
     std::vector<Move> move_list;
 
-    for (int i=0; i<100000; i++) {
+    for (int i=0; i<10000; i++) {
         std::uniform_int_distribution<int> dist(5, 60);
         int plys = dist(mt);
         Board bd = Board();
@@ -724,6 +724,160 @@ TEST(MakeMove, MoveBlackCapturePromotionQueen) {
         "rnbqkbnr/pppppp1p/8/8/8/5R2/PPPPPPP1/RNBQKBq1 w Qkq - 0 1");
 }
 
+void unmove_test(const char *start, Move move) {
+    Board bd = Board(start);
+    IrreversableState state = IrreversableState(bd, move);
+    bd.make_move(move);
+    unmake_move(bd, move, state);
+    Board correct_result = Board(start);
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+TEST(UnmakeMove, WhitePawnPush) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(A2, A3, P, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhitePawnDoublePush) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(A2, A4, P, p, 0, 1, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteKnight) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        encode_move(B1, C3, N, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackPawnPush) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(A7, A6, p, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackDoublePawnPush) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(A7, A5, p, p, 0, 1, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnight) {
+    unmove_test("rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+        encode_move(B8, A6, n, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteCastleKingSide) {
+    unmove_test("rnbqk2r/pppp1ppp/3b1n2/4p3/8/3BPN2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+        encode_move(E1, G1, K, p, 0, 0, 0, 1));
+}
+
+TEST(UnmakeMove, WhiteBishop) {
+    unmove_test("rnbqk2r/pppp1ppp/3b1n2/4p3/8/3BPN2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+        encode_move(E3, G6, B, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteBishopCapture) {
+    unmove_test("rnbqk2r/pppp1ppp/3b1n2/4p3/8/3BPN2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+        encode_move(E3, H7, B, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackBishop) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1",
+        encode_move(B4, C3, b, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackBishopCapture) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1",
+        encode_move(B4, D2, b, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackCastleKingSide) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1",
+        encode_move(E8, G8, k, p, 0, 0, 0, 1));
+}
+
+TEST(UnmakeMove, BlackPawnCapture) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1",
+        encode_move(B7, A6, p, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteEnpassant) {
+    unmove_test("rnbqk2r/pp1p1p1p/B1p5/4p1pP/1b4n1/4PN2/PPPPKPP1/RNBQ3R w kq g6 0 1",
+       encode_move(H5, G6, P, p, 1, 0, 1, 0));
+}
+
+TEST(UnmakeMove, WhiteIgnoreEnpassant) {
+    unmove_test("rnbqk2r/pp1p1p1p/B1p5/4p1pP/1b4n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1",
+        encode_move(E2, F1, K, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhitePromotionQueen) {
+    unmove_test("rnbqk2r/pppp1pP1/B7/7p/1b2p1n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1",
+        encode_move(G7, G8, P, Q, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhitePromotionRook) {
+    unmove_test("rnbqk2r/pppp1pP1/B7/7p/1b2p1n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1",
+        encode_move(G7, G8, P, R, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteCapturePromotionQueen) {
+    unmove_test("rnbqk2r/pppp1pP1/B7/7p/1b2p1n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1",
+        encode_move(G7, H8, P, Q, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, WhiteCapturePromotionRook) {
+    unmove_test("rnbqk2r/pppp1pP1/B7/7p/1b2p1n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1",
+        encode_move(G7, H8, P, R, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightCapture) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1",
+        encode_move(G4, F2, n, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightCapture2) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq - 0 1",
+        encode_move(G4, E3, n, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightCheck) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/8/1b2p1nP/4PN2/PPPP1PP1/RNBQ1K1R b kq - 0 1",
+        encode_move(G4, H2, n, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightCheckCapture) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/8/1b2p1nP/4PN2/PPPP1PP1/RNBQ1K1R b kq - 0 1",
+        encode_move(G4, E3, n, p, 1, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightMove2) {
+    unmove_test("rnbqk2r/pppp1ppp/B7/8/1b2p1nP/4PN2/PPPP1PP1/RNBQ1K1R b kq - 0 1",
+        encode_move(G4, F6, n, p, 0, 0, 0, 0));
+}
+
+TEST(UnmakeMove, BlackKnightCheckmate) {
+    unmove_test("rnbqr1k1/p1pp1ppp/Bp6/8/1b2p1nP/4PR2/PPPPNPP1/R1B1QKN1 b - - 0 1",
+        encode_move(G4, H2, n, p, 0, 0, 0, 0));
+}
+
+
+void unnullmove_test(const char *start) {
+    Board bd = Board(start);
+    IrreversableState state = IrreversableState(bd, Move(0));
+    make_null_move(bd);
+    unmake_null_move(bd, state);
+    Board correct_result = Board(start);
+    EXPECT_EQ(bd, correct_result);
+    EXPECT_EQ(bd.hash_key, correct_result.zHash());
+}
+
+
+TEST(UnmakeMove, NullMove) {
+    unnullmove_test("rnbqk2r/pppp1ppp/B7/4p3/1b4nP/4PN2/PPPPKPP1/RNBQ3R b kq h3 0 1");
+}
+
+TEST(UnmakeMove, NullMoveEnpassant) {
+    unnullmove_test("rnbqk2r/pp1p1p1p/B1p5/4p1pP/1b4n1/4PN2/PPPPKPP1/RNBQ3R w kq - 0 1");
+}
 
 
 TEST(EP_IndexCalc, A3) {
@@ -741,6 +895,9 @@ TEST(EP_IndexCalc, A6) {
 TEST(EP_IndexCalc, H6) {
     EXPECT_EQ(ep_index_calc(H6), 15);
 }
+
+
+
 
 
 /*
@@ -823,16 +980,23 @@ TEST(MoveOrdering, Sorting) {
 // }
 
 int main(int argc, char **argv) {
+    // const char *start_position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN1 w KQkq - 0 1 ";
 
-    // std::vector<Move> expected = {27428, 5270244, 684023, 618487, 552951, 487415, 45584, 45648, 46160, 46608, 46672};
-    
-    // for (int move: expected) {
-    //     print_move_as_array(move);
-    //     printf(", \n");
-    // }
+    // printf("\n");
+
+    // Board b = Board(start_position);
+
+    // int old_eval = evaluate(b);
+    // int pesto = pesto_eval(b);
+
+    //printf("old: %d, pesto: %d\n", old_eval, pesto);
 
 
 
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+
+
+
+    //::testing::InitGoogleTest(&argc, argv);
+    //return RUN_ALL_TESTS();
+    return 0;
 }

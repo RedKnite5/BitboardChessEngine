@@ -18,7 +18,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    Game &game;
+    std::shared_ptr<Game> game;
     std::array<DraggableLabel*, 64> squares;
     QPixmap *lastTakenPieceImage = nullptr;
     QThread *thread = nullptr;
@@ -26,7 +26,7 @@ public:
     std::shared_ptr<DragDropState> DDState;
     uint64_t highlighted = 0;
 
-    MainWindow(Game &aGame, int aDepth, QWidget *parent = nullptr);
+    MainWindow(std::shared_ptr<Game> aGame, int aDepth, QWidget *parent = nullptr);
     ~MainWindow();
     std::array<DraggableLabel*, 64> setupChessboard(QWidget *parent);
     int depth;
@@ -40,7 +40,7 @@ public:
     void highlight(int square);
 
 signals:
-    void RequestEngineMove(Game state, int depth);
+    void RequestEngineMove(std::shared_ptr<Game> state, int depth);
 
 private:
     Ui::MainWindow *ui;
