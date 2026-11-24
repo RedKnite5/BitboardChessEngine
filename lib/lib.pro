@@ -32,7 +32,8 @@ HEADERS += \
     attack_tables.h \
     search.h \
     engine_worker.h \
-    pesto_eval.h
+    pesto_eval.h \
+    evaluation_tables.h
 
 FORMS += \
     mainwindow.ui

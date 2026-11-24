@@ -1,45 +1,36 @@
 #include "pesto_eval.h"
 #include "board.h"
+#include "evaluate_tables.h"
+
+#include <array>
 
 // https://chessprogramming.org/PeSTO%27s_Evaluation_Function
 
-#define PAWN   0
-#define KNIGHT 1
-#define BISHOP 2
-#define ROOK   3
-#define QUEEN  4
-#define KING   5
 
-/* board representation */
-#define WHITE  0
-#define BLACK  1
+/*
+namespace {
+constexpr int pawnType = 0;
+constexpr int knightType = 1;
+constexpr int bishopType = 2;
+constexpr int rookType = 3;
+constexpr int queenType = 4;
+constexpr int kingType = 5;
 
-#define WHITE_PAWN      (2*PAWN   + WHITE)
-#define BLACK_PAWN      (2*PAWN   + BLACK)
-#define WHITE_KNIGHT    (2*KNIGHT + WHITE)
-#define BLACK_KNIGHT    (2*KNIGHT + BLACK)
-#define WHITE_BISHOP    (2*BISHOP + WHITE)
-#define BLACK_BISHOP    (2*BISHOP + BLACK)
-#define WHITE_ROOK      (2*ROOK   + WHITE)
-#define BLACK_ROOK      (2*ROOK   + BLACK)
-#define WHITE_QUEEN     (2*QUEEN  + WHITE)
-#define BLACK_QUEEN     (2*QUEEN  + BLACK)
-#define WHITE_KING      (2*KING   + WHITE)
-#define BLACK_KING      (2*KING   + BLACK)
-#define EMPTY           (BLACK_KING  +  1)
+constexpr int whiteIndex = 0;
+constexpr int blackIndex = 1;
 
-#define PCOLOR(p) ((p)&1)
+constexpr int flipSquare(int square) {
+    return square ^ 56;
+}
+}
 
-#define FLIP(sq) ((sq)^56)
-#define OTHER(side) ((side)^ 1)
+std::array<int, 6> mg_value = {82, 337, 365, 477, 1025, 0};
+std::array<int, 6> eg_value = {94, 281, 297, 512, 936, 0};
 
-int mg_value[6] = { 82, 337, 365, 477, 1025,  0};
-int eg_value[6] = { 94, 281, 297, 512,  936,  0};
+// piece/sq tables
+// values from Rofchade: http://www.talkchess.com/forum3/viewtopic.php?f=2&t=68311&start=19
 
-/* piece/sq tables */
-/* values from Rofchade: http://www.talkchess.com/forum3/viewtopic.php?f=2&t=68311&start=19 */
-
-int mg_pawn_table[64] = {
+std::array<int, 64> mg_pawn_table = {
       0,   0,   0,   0,   0,   0,  0,   0,
      98, 134,  61,  95,  68, 126, 34, -11,
      -6,   7,  26,  31,  65,  56, 25, -20,
@@ -50,7 +41,7 @@ int mg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,  0,   0,
 };
 
-int eg_pawn_table[64] = {
+std::array<int, 64> eg_pawn_table = {
       0,   0,   0,   0,   0,   0,   0,   0,
     178, 173, 158, 134, 147, 132, 165, 187,
      94, 100,  85,  67,  56,  53,  82,  84,
@@ -61,7 +52,7 @@ int eg_pawn_table[64] = {
       0,   0,   0,   0,   0,   0,   0,   0,
 };
 
-int mg_knight_table[64] = {
+std::array<int, 64> mg_knight_table = {
     -167, -89, -34, -49,  61, -97, -15, -107,
      -73, -41,  72,  36,  23,  62,   7,  -17,
      -47,  60,  37,  65,  84, 129,  73,   44,
@@ -72,7 +63,7 @@ int mg_knight_table[64] = {
     -105, -21, -58, -33, -17, -28, -19,  -23,
 };
 
-int eg_knight_table[64] = {
+std::array<int, 64> eg_knight_table = {
     -58, -38, -13, -28, -31, -27, -63, -99,
     -25,  -8, -25,  -2,  -9, -25, -24, -52,
     -24, -20,  10,   9,  -1,  -9, -19, -41,
@@ -83,7 +74,7 @@ int eg_knight_table[64] = {
     -29, -51, -23, -15, -22, -18, -50, -64,
 };
 
-int mg_bishop_table[64] = {
+std::array<int, 64> mg_bishop_table = {
     -29,   4, -82, -37, -25, -42,   7,  -8,
     -26,  16, -18, -13,  30,  59,  18, -47,
     -16,  37,  43,  40,  35,  50,  37,  -2,
@@ -94,7 +85,7 @@ int mg_bishop_table[64] = {
     -33,  -3, -14, -21, -13, -12, -39, -21,
 };
 
-int eg_bishop_table[64] = {
+std::array<int, 64> eg_bishop_table = {
     -14, -21, -11,  -8, -7,  -9, -17, -24,
      -8,  -4,   7, -12, -3, -13,  -4, -14,
       2,  -8,   0,  -1, -2,   6,   0,   4,
@@ -105,7 +96,7 @@ int eg_bishop_table[64] = {
     -23,  -9, -23,  -5, -9, -16,  -5, -17,
 };
 
-int mg_rook_table[64] = {
+std::array<int, 64> mg_rook_table = {
      32,  42,  32,  51, 63,  9,  31,  43,
      27,  32,  58,  62, 80, 67,  26,  44,
      -5,  19,  26,  36, 17, 45,  61,  16,
@@ -116,7 +107,7 @@ int mg_rook_table[64] = {
     -19, -13,   1,  17, 16,  7, -37, -26,
 };
 
-int eg_rook_table[64] = {
+std::array<int, 64> eg_rook_table = {
     13, 10, 18, 15, 12,  12,   8,   5,
     11, 13, 13, 11, -3,   3,   8,   3,
      7,  7,  7,  5,  4,  -3,  -5,  -3,
@@ -127,7 +118,7 @@ int eg_rook_table[64] = {
     -9,  2,  3, -1, -5, -13,   4, -20,
 };
 
-int mg_queen_table[64] = {
+std::array<int, 64> mg_queen_table = {
     -28,   0,  29,  12,  59,  44,  43,  45,
     -24, -39,  -5,   1, -16,  57,  28,  54,
     -13, -17,   7,   8,  29,  56,  47,  57,
@@ -138,7 +129,7 @@ int mg_queen_table[64] = {
      -1, -18,  -9,  10, -15, -25, -31, -50,
 };
 
-int eg_queen_table[64] = {
+std::array<int, 64> eg_queen_table = {
      -9,  22,  22,  27,  27,  19,  10,  20,
     -17,  20,  32,  41,  58,  25,  30,   0,
     -20,   6,   9,  49,  47,  35,  19,   9,
@@ -149,7 +140,7 @@ int eg_queen_table[64] = {
     -33, -28, -22, -43,  -5, -32, -20, -41,
 };
 
-int mg_king_table[64] = {
+std::array<int, 64> mg_king_table = {
     -65,  23,  16, -15, -56, -34,   2,  13,
      29,  -1, -20,  -7,  -8,  -4, -38, -29,
      -9,  24,   2, -16, -20,   6,  22, -22,
@@ -160,7 +151,7 @@ int mg_king_table[64] = {
     -15,  36,  12, -54,   8, -28,  24,  14,
 };
 
-int eg_king_table[64] = {
+std::array<int, 64> eg_king_table = {
     -74, -35, -18, -18, -11,  15,   4, -17,
     -12,  17,  14,  17,  17,  38,  23,  11,
      10,  17,  23,  15,  20,  45,  44,  13,
@@ -171,8 +162,7 @@ int eg_king_table[64] = {
     -53, -34, -21, -11, -28, -14, -24, -43
 };
 
-int* mg_pesto_table[6] =
-{
+std::array<std::array<int, 64>, 6> mg_pesto_table = {
     mg_pawn_table,
     mg_knight_table,
     mg_bishop_table,
@@ -181,8 +171,7 @@ int* mg_pesto_table[6] =
     mg_king_table
 };
 
-int* eg_pesto_table[6] =
-{
+std::array<std::array<int, 64>, 6> eg_pesto_table = {
     eg_pawn_table,
     eg_knight_table,
     eg_bishop_table,
@@ -191,45 +180,82 @@ int* eg_pesto_table[6] =
     eg_king_table
 };
 
-//int gamephaseInc[12] = {0,0,1,1,1,1,2,2,4,4,0,0};
-int gamephaseInc[12] = {0, 1, 1, 2, 4, 0, 0, 1, 1, 2, 4, 0};
-int mg_table[12][64];
-int eg_table[12][64];
+
+std::array<std::array<int, 64>, 12> mg_table{};
+std::array<std::array<int, 64>, 12> eg_table{};
 
 
-constexpr int get_lsb_index(unsigned long long x) {
-    return __builtin_ctzll(x);
+#include <iostream>
+
+template<typename T>
+void print(T n) {
+    //printf("%ld", n);
+    std::cout << n;
 }
+
+template<typename T, size_t N>
+void print(const std::array<T, N> &arr) {
+    printf("{");
+    for (size_t i=0; i<N; i++) {
+        print(arr[i]);
+        if (i != N-1) {
+            printf(", ");
+        }
+    }
+    printf("}");
+}
+
+void generate_eval_table_file() {
+    printf("#pragma once\n#include <array>\n");
+
+    // attackTables
+    printf("inline constexpr std::array<std::array<int, 64>, 12> mg_table = {");
+    print(mg_table);
+
+    printf("};\ninline constexpr std::array<std::array<int, 64>, 12> eg_table = {");
+    print(eg_table);
+
+    printf("};\n");
+}
+
 
 
 void init_tables() {
     int p, sq;
-    for (p = PAWN; p <= KING; p++) {
+    for (p = pawnType; p <= kingType; p++) {
         for (sq = 0; sq < 64; sq++) {
             mg_table[p]  [sq] = mg_value[p] + mg_pesto_table[p][sq];
             eg_table[p]  [sq] = eg_value[p] + eg_pesto_table[p][sq];
-            mg_table[p+6][sq] = mg_value[p] + mg_pesto_table[p][FLIP(sq)];
-            eg_table[p+6][sq] = eg_value[p] + eg_pesto_table[p][FLIP(sq)];
+            mg_table[p+6][sq] = mg_value[p] + mg_pesto_table[p][flipSquare(sq)];
+            eg_table[p+6][sq] = eg_value[p] + eg_pesto_table[p][flipSquare(sq)];
 
             // printf("mg_table[%d][%d] = %d\n", p, sq, mg_table[p][sq]);
             // printf("mg_table[%d][%d] = %d\n", p+6, sq, mg_table[p+6][sq]);
         }
     }
+
+    generate_eval_table_file();
+    
+}
+*/
+
+constexpr std::array<int, 12> gamephaseInc = {0, 1, 1, 2, 4, 0, 0, 1, 1, 2, 4, 0};
+
+constexpr int get_lsb_index(unsigned long long x) {
+    return __builtin_ctzll(x);
 }
 
 int pesto_eval(const Board board) {
-    int mg[2];
-    int eg[2];
-    int gamePhase = 0;
+    constexpr int whiteIndex = 0;
+    constexpr int blackIndex = 1;
 
-    mg[WHITE] = 0;
-    mg[BLACK] = 0;
-    eg[WHITE] = 0;
-    eg[BLACK] = 0;
+    std::array<int, 2> mg{};
+    std::array<int, 2> eg{};
+    int gamePhase = 0;
 
     for (Piece pc=p; pc<=K; ++pc) {
         uint64_t bb = board.bitboards[pc];
-        bool color = pc < P;
+        const int color = pc < P ? blackIndex : whiteIndex;
 
         while (bb) {
             int sq = get_lsb_index(bb);

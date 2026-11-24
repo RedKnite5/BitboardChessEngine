@@ -490,33 +490,33 @@ Move Searcher::negamax(Board &board, int depth) {
             }
         }
 
-        // if (score <= alpha) {
-        //     if (DEBUG) {
-        //         printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
-        //     }
-        //     alpha = MIN_SCORE;
-        //     failed_low = true;
-        //     if (failed_high) {
-        //         beta = MAX_SCORE;
-        //     }
-        //     continue;
-        // }
-        // if (score >= beta) {
-        //     if (DEBUG) {
-        //         printf("Failed high depth: %d score: %d beta: %d\n", current_depth, score, beta);
-        //     }
-        //     beta = MAX_SCORE;
-        //     failed_high = true;
-        //     if (failed_low) {
-        //         alpha = MIN_SCORE;
-        //     }
-        //     continue;
-        // }
+        if (score <= alpha) {
+            if (DEBUG) {
+                printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
+            }
+            alpha = MIN_SCORE;
+            failed_low = true;
+            if (failed_high) {
+                beta = MAX_SCORE;
+            }
+            continue;
+        }
+        if (score >= beta) {
+            if (DEBUG) {
+                printf("Failed high depth: %d score: %d beta: %d\n", current_depth, score, beta);
+            }
+            beta = MAX_SCORE;
+            failed_high = true;
+            if (failed_low) {
+                alpha = MIN_SCORE;
+            }
+            continue;
+        }
 
-        // alpha = score - window;
-        // beta = score + window;
-        // failed_low = false;
-        // failed_high = false;
+        alpha = score - window;
+        beta = score + window;
+        failed_low = false;
+        failed_high = false;
 
         current_depth++;
     }

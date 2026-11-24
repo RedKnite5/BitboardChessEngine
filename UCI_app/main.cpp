@@ -14,7 +14,6 @@
 #include "search.h"
 #include "board.h"
 
-#include "pesto_eval.h"
 
 using namespace std;
 
@@ -334,10 +333,6 @@ void UCI_loop() {
 
 
 int main(int argc, char **argv) {
-    //generate_attack_table_h_file();
-
-    init_tables();
-
     UCI_loop();
 }
 
@@ -362,7 +357,7 @@ c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 
 
 
 c-chess-cli_linux -sprt elo1=10 -games 500 -concurrency 10 -each tc=10+.5 \
-    -engine name=Control cmd=./Control_eval \
+    -engine name=pesto_aspiration cmd=./pesto_aspiration \
     -engine name=Pesto cmd=./pesto
 
 
