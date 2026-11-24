@@ -2,6 +2,7 @@
 
 #include <QApplication>
 
+#include <cstddef>
 #include <cstdint>
 #include <time.h>
 #include <math.h>
@@ -10,7 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include <algorithm>
+
 #include "board.h"
+#include "pesto_eval.h"
 #include "search.h"
 
 constexpr bool DEBUG = false;
@@ -216,7 +220,8 @@ int Searcher::quiscence(Board &board, int alpha, int beta) {
         return tt_score;
     }
 
-    int eval_score = evaluate(board);
+    //int eval_score = evaluate(board);
+    int eval_score = pesto_eval(board);
 
     if (eval_score >= beta) {
         // fail high
@@ -331,7 +336,9 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
     int moves_searched = -1;
     int score;
 
-    for (Move move : move_list) {
+    for (size_t i=0; i<move_list.size(); ++i) {
+        Move move = move_list[i];
+
         //Board new_board = board;
         state_stack.push_back(IrreversableState(board, move));
         bool king_safe = board.make_move(move);
@@ -403,6 +410,9 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
                 killer_moves[0][ply] = move;
             }
 
+            // measure cutoffs for testing purposes
+            //cutoffs[std::min(i, cutoffs.size()-1)]++;
+
             ply--;
             return beta;
         }
@@ -463,6 +473,10 @@ Move Searcher::negamax(Board &board, int depth) {
 
     int current_depth = 1;
     while (current_depth <= depth) {
+        score = negamax_rec(board, alpha, beta, current_depth);
+        if (DEBUG) {
+            printf("alpha: %d beta: %d\n", alpha, beta);
+        }
 
         printf("info depth %d score cp %d nodes %lld time %lld ",
             current_depth, score, nodes, (current_time_us() - settings.start_time) / 1000
@@ -470,44 +484,39 @@ Move Searcher::negamax(Board &board, int depth) {
         print_pv(pv);
         printf("\n");
 
-        score = negamax_rec(board, alpha, beta, current_depth);
-        if (DEBUG) {
-            printf("depth: %d score: %d alpha: %d beta: %d\n", current_depth, score, alpha, beta);
-        }
-
         if (settings.stopped != nullptr) {
             if (*settings.stopped == true) {
                 break;
             }
         }
 
-        if (score <= alpha) {
-            if (DEBUG) {
-                printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
-            }
-            alpha = MIN_SCORE;
-            failed_low = true;
-            if (failed_high) {
-                beta = MAX_SCORE;
-            }
-            continue;
-        }
-        if (score >= beta) {
-            if (DEBUG) {
-                printf("Failed high depth: %d score: %d beta: %d\n", current_depth, score, beta);
-            }
-            beta = MAX_SCORE;
-            failed_high = true;
-            if (failed_low) {
-                alpha = MIN_SCORE;
-            }
-            continue;
-        }
+        // if (score <= alpha) {
+        //     if (DEBUG) {
+        //         printf("Failed low depth: %d score: %d alpha: %d\n", current_depth, score, alpha);
+        //     }
+        //     alpha = MIN_SCORE;
+        //     failed_low = true;
+        //     if (failed_high) {
+        //         beta = MAX_SCORE;
+        //     }
+        //     continue;
+        // }
+        // if (score >= beta) {
+        //     if (DEBUG) {
+        //         printf("Failed high depth: %d score: %d beta: %d\n", current_depth, score, beta);
+        //     }
+        //     beta = MAX_SCORE;
+        //     failed_high = true;
+        //     if (failed_low) {
+        //         alpha = MIN_SCORE;
+        //     }
+        //     continue;
+        // }
 
-        alpha = score - window;
-        beta = score + window;
-        failed_low = false;
-        failed_high = false;
+        // alpha = score - window;
+        // beta = score + window;
+        // failed_low = false;
+        // failed_high = false;
 
         current_depth++;
     }

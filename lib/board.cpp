@@ -1014,7 +1014,7 @@ void printBoard_stream(const Board &board, std::ostream& out) {
         out << "\n";
     }
     out << "\n   A B C D E F G H\n";
-    out << "Move: " << int(board.move) << "\n";
+    out << "Move: " << static_cast<int>(board.move) << "\n";
     out << "Castle Flags: ";
     const char castling_key[] = "KQkq";
     for (int i = 0; i < 4; ++i) {
@@ -1026,7 +1026,7 @@ void printBoard_stream(const Board &board, std::ostream& out) {
     }
     out << "\n";
     out << "En Passant Square: " << square_coords[board.enPassantSquare] << "\n";
-    out << "Half Move Clock: " << int(board.halfMoveClock) << "\n";
+    out << "Half Move Clock: " << static_cast<int>(board.halfMoveClock) << "\n";
     out << (board.turn ? "White to move" : "Black to move") << std::endl;
 }
 

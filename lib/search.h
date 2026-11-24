@@ -67,6 +67,7 @@ struct Settings {
     void set_stopped_ptr(std::atomic<bool> *aStopped);
 };
 
+
 class Searcher {
   public:
     TT tt;
@@ -77,6 +78,9 @@ class Searcher {
     std::vector<IrreversableState> state_stack = {};
     Settings settings;
     long long nodes = 0;
+
+    // measure cutoffs for testing purposes
+    //std::array<uint32_t, 15> cutoffs = {};
 
     std::array<Move, PV_SIZE> pv = {};
     int ply = -1;

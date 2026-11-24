@@ -22,7 +22,8 @@ SOURCES += \
     draggable.cpp \
     board.cpp \
     search.cpp \
-    engine_worker.cpp 
+    engine_worker.cpp \
+    pesto_eval.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -30,7 +31,8 @@ HEADERS += \
     board.h \
     attack_tables.h \
     search.h \
-    engine_worker.h 
+    engine_worker.h \
+    pesto_eval.h
 
 FORMS += \
     mainwindow.ui

@@ -6,6 +6,7 @@
 
 #include "board.h"
 #include "board.cpp"
+#include "pesto_eval.h"
 
 
 long driver(Board &board, int depth) {
@@ -980,6 +981,25 @@ TEST(MoveOrdering, Sorting) {
 // }
 
 int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    init_tables();
+
+    const char *start_position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN1 w KQkq - 0 1 ";
+
+    printf("\n");
+
+    Board b = Board(start_position);
+
+    int old_eval = evaluate(b);
+    int pesto = pesto_eval(b);
+
+    printf("old: %d, pesto: %d\n", old_eval, pesto);
+
+
+
+
+
+
+    //::testing::InitGoogleTest(&argc, argv);
+    //return RUN_ALL_TESTS();
+    return 0;
 }

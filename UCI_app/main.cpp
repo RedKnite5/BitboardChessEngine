@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -12,6 +13,8 @@
 
 #include "search.h"
 #include "board.h"
+
+#include "pesto_eval.h"
 
 using namespace std;
 
@@ -40,6 +43,14 @@ void run_engine(Game &game, atomic<bool> *stopped) {
 
     uint8_t &rep_count_after = game.S.real_repititions[game.board.hash_key];
     ++rep_count_after;
+
+    // uint32_t total_cutoffs = 0;
+    // printf("cutoffs: [");
+    // for (size_t i = 0; i <= game.S.cutoffs.size(); ++i) {
+    //     printf("%u, ", game.S.cutoffs[i]);
+    //     total_cutoffs += game.S.cutoffs[i];
+    // }
+    // printf("]\ntotal: %u first moves ratio: %f\n", total_cutoffs, float(game.S.cutoffs[0]) / float(total_cutoffs));
 }
 
 
@@ -205,7 +216,7 @@ int parse_go(string s, bool color) {
             total_time += winc;
         }
 
-        total_time = min(total_time, int(wtime*.8));
+        total_time = min(total_time, static_cast<int>(wtime*.8));
     } else {
         if (btime != -1) {
             total_time += btime;
@@ -221,7 +232,7 @@ int parse_go(string s, bool color) {
             total_time += binc;
         }
 
-        total_time = min(total_time, int(btime*.8));
+        total_time = min(total_time, static_cast<int>(btime*.8));
     }
 
 
@@ -325,6 +336,8 @@ void UCI_loop() {
 int main(int argc, char **argv) {
     //generate_attack_table_h_file();
 
+    init_tables();
+
     UCI_loop();
 }
 
@@ -349,8 +362,8 @@ c-chess-cli_linux -sprt -games 2 -log -each tc=20+.5 option."Move Overhead"=500 
 
 
 c-chess-cli_linux -sprt elo1=10 -games 500 -concurrency 10 -each tc=10+.5 \
-    -engine name=reps_no_debug cmd=./Engine_reps_no_debug \
-    -engine name=O3 cmd=./Engine_reps_O3
+    -engine name=Control cmd=./Control_eval \
+    -engine name=Pesto cmd=./pesto
 
 
 Score of base vs age: 3 - 4 - 13  [0.475] 20
