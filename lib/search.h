@@ -98,6 +98,10 @@ class Searcher {
     int score_move(const Board &board, Move move, Move tt_move) const;
     void sort_moves(const Board &board, std::vector<Move> &move_list, Move tt_move) const;
     void move_reset();
+    bool check_following_pv(const std::vector<Move> &move_list) const;
+    bool check_3_fold_rep(const Board &board) const;
+
+    int null_move_pruning(Board &board, int depth, int beta);
 
     int quiscence(Board &board, int alpha, int beta);
     int negamax_rec(Board &board, int alpha, int beta, int depth);

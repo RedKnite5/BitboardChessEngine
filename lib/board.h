@@ -157,6 +157,8 @@ class Board {
 
     uint64_t zHash() const;
     bool make_move(Move move);
+    void unmake_move(Move move, IrreversableState state);
+    bool make_move_safe(Move move, std::vector<IrreversableState> &state_stack);
 };
 
 struct IrreversableState {
@@ -200,11 +202,10 @@ int mvv_lva(const Board &board, Move move);
 //void sort_moves(const Board &board, std::vector<int> &move_list);
 
 void generate_moves(const Board &board, std::vector<Move> &move_list);
+std::vector<Move> generate_moves(const Board &board);
 void generate_capture_moves(const Board &board, std::vector<Move> &move_list);
 
 void generate_legal_moves(const Board &board, std::vector<Move> &move_list);
-
-void unmake_move(Board &board, Move move, IrreversableState state);
 
 void make_null_move(Board &board);
 void unmake_null_move(Board &board, IrreversableState state);

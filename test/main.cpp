@@ -14,9 +14,7 @@ long driver(Board &board, int depth) {
     }
     long nodes = 0;
 
-    std::vector<Move> move_list;
-    move_list.reserve(32);
-    generate_moves(board, move_list);
+    std::vector<Move> move_list = generate_moves(board);
 
     for (Move move : move_list) {
         Board new_board = board;
@@ -214,7 +212,6 @@ TEST(ZHashing, HashesDistinct) {
         int plys = dist(mt);
         Board bd = Board();
         for (int j=0; j<=plys; j++) {
-            move_list.clear();
             generate_legal_moves(bd, move_list);
             if (move_list.size() == 0) {
                 break;
@@ -324,7 +321,6 @@ TEST(MoveGeneration, Castling1) {
 TEST(MoveGeneration, Castling2) {
     const char *position = "r3k2r/pppppppp/8/8/8/8/8/RN2K2R w Qkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<Move> res;
     std::vector<std::array<char, 8>> expected = {
         {B1, D2, N, p, 0, 0, 0, 0},
         {B1, A3, N, p, 0, 0, 0, 0},
@@ -350,7 +346,7 @@ TEST(MoveGeneration, Castling2) {
         {E1, F2, K, p, 0, 0, 0, 0},
     };
 
-    generate_moves(bd, res);
+    std::vector<Move> res = generate_moves(bd);
     EXPECT_TRUE(COMPARE_MOVE_LIST_UNORDERED(expected, res));
 }
 
@@ -358,7 +354,6 @@ TEST(MoveGeneration, Castling2) {
 TEST(MoveGeneration, TrickyPositionWhite) {
     const char *position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<Move> res;
     std::vector<std::array<char, 8>> expected = {
         {A2, A3, P, p, 0, 0, 0, 0},
         {A2, A4, P, p, 0, 1, 0, 0},
@@ -410,14 +405,13 @@ TEST(MoveGeneration, TrickyPositionWhite) {
         {E1, G1, K, p, 0, 0, 0, 1},
     };
 
-    generate_moves(bd, res);
+    std::vector<Move> res = generate_moves(bd);
     EXPECT_TRUE(COMPARE_MOVE_LIST_UNORDERED(expected, res));
 }
 
 TEST(MoveGeneration, TrickyPositionBlack) {
     const char *position = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1 ";
     Board bd = Board(position);
-    std::vector<Move> res;
 
     std::vector<std::array<char, 8>> expected = {
         {H3, G2, p, p, 1, 0, 0, 0},
@@ -465,7 +459,7 @@ TEST(MoveGeneration, TrickyPositionBlack) {
         {E8, G8, k, p, 0, 0, 0, 1},
     };
 
-    generate_moves(bd, res);
+    std::vector<Move> res = generate_moves(bd);
     EXPECT_TRUE(COMPARE_MOVE_LIST_UNORDERED(expected, res));
 }
 
@@ -474,7 +468,6 @@ TEST(MoveGeneration, TrickyPositionBlack) {
 TEST(MoveGeneration, TestEnpassant1) {
     const char *position = "k7/7P/8/3pP3/8/K7/8/8 w - d6 0 1";
     Board bd = Board(position);
-    std::vector<Move> res;
 
     std::vector<std::array<char, 8>> expected = {
         {E5, E6, P, p, 0, 0, 0, 0},
@@ -490,7 +483,7 @@ TEST(MoveGeneration, TestEnpassant1) {
         {A3, B4, K, p, 0, 0, 0, 0},
     };
 
-    generate_moves(bd, res);
+    std::vector<Move> res = generate_moves(bd);
     EXPECT_TRUE(COMPARE_MOVE_LIST_UNORDERED(expected, res));
 }
 
@@ -728,7 +721,7 @@ void unmove_test(const char *start, Move move) {
     Board bd = Board(start);
     IrreversableState state = IrreversableState(bd, move);
     bd.make_move(move);
-    unmake_move(bd, move, state);
+    bd.unmake_move(move, state);
     Board correct_result = Board(start);
     EXPECT_EQ(bd, correct_result);
     EXPECT_EQ(bd.hash_key, correct_result.zHash());
@@ -975,9 +968,6 @@ TEST(MoveOrdering, Sorting) {
 }
 */
 
-// TEST(FindMate) {
-
-// }
 
 int main(int argc, char **argv) {
     // const char *start_position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN1 w KQkq - 0 1 ";
@@ -991,12 +981,7 @@ int main(int argc, char **argv) {
 
     //printf("old: %d, pesto: %d\n", old_eval, pesto);
 
-
-
-
-
-
-    //::testing::InitGoogleTest(&argc, argv);
-    //return RUN_ALL_TESTS();
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
     return 0;
 }

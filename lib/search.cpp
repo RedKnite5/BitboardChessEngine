@@ -32,9 +32,7 @@ long driver(Board &board, int depth) {
     }
     long nodes = 0;
 
-    std::vector<Move> move_list;
-    move_list.reserve(32);
-    generate_moves(board, move_list);
+    std::vector<Move> move_list = generate_moves(board);
 
     for (Move move : move_list) {
         Board new_board = board;
@@ -184,6 +182,10 @@ void Settings::set_stopped_ptr(std::atomic<bool> *aStopped) {
     stopped = aStopped;
 }
 
+constexpr int pv_index_calc(int ply) {
+    return ply * (2 * MAX_PLY + 1 - ply) / 2;
+}
+
 int Searcher::score_move(const Board &board, Move move, Move tt_move) const {
     if (move == tt_move || (follow_pv && pv[ply] == move)) {
         return 100000;
@@ -207,6 +209,37 @@ int Searcher::score_move(const Board &board, Move move, Move tt_move) const {
 void Searcher::sort_moves(const Board &board, std::vector<Move> &move_list, Move tt_move) const {
     std::ranges::sort(move_list, {}, [this, &board, tt_move](Move move){ return -score_move(board, move, tt_move); });
 }
+
+bool Searcher::check_following_pv(const std::vector<Move> &move_list) const {
+    if (!move_list.empty()) {
+        return move_list.front() == pv[ply];
+    }
+    return true;
+}
+
+bool Searcher::check_3_fold_rep(const Board &board) const {
+    auto it = real_repititions.find(board.hash_key);
+    if (it == real_repititions.end()) {
+        return false;
+    }
+
+    return (it->second == 2 || search_repititions.contains(board.hash_key));
+}
+
+int Searcher::null_move_pruning(Board &board, int depth, int beta) {
+    if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
+        state_stack.push_back(IrreversableState(board, Move(0)));
+        make_null_move(board);
+        null_moved = true;
+        int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
+        null_moved = false;
+        unmake_null_move(board, state_stack.back());
+        state_stack.pop_back();
+        return score;
+    }
+    return beta - 1;
+}
+
 
 int Searcher::quiscence(Board &board, int alpha, int beta) {
     if ((nodes & 2047) == 0) {
@@ -235,28 +268,19 @@ int Searcher::quiscence(Board &board, int alpha, int beta) {
     // TODO: if in check look for checkmate/stalemate and go over evasions
 
     std::vector<Move> move_list;
-    move_list.reserve(32);
     generate_capture_moves(board, move_list);
     sort_moves(board, move_list, tt_move);
-    if (move_list.size() > 0) {
-        if (move_list[0] != pv[ply]) {
-            follow_pv = false;
-        }
-    }
+    follow_pv = check_following_pv(move_list);
 
     for (Move move : move_list) {
-        //Board new_board = board;
-        state_stack.push_back(IrreversableState(board, move));
-        bool king_safe = board.make_move(move);
+        bool king_safe = board.make_move_safe(move, state_stack);
         if (!king_safe) {
-            unmake_move(board, move, state_stack.back());
-            state_stack.pop_back();
             continue;
         }
 
         int score = -quiscence(board, -beta, -alpha);
 
-        unmake_move(board, move, state_stack.back());
+        board.unmake_move(move, state_stack.back());
         state_stack.pop_back();
 
         if (settings.stopped != nullptr) {
@@ -307,57 +331,33 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
         }
     }
 
-    if (depth >= 4 && !is_king_exposed(board, board.turn) && !null_moved) {
-        state_stack.push_back(IrreversableState(board, Move(0)));
-        make_null_move(board);
-        null_moved = true;
-        int score = -negamax_rec(board, -beta, -beta + 1, depth-1-2);
-        null_moved = false;
-        unmake_null_move(board, state_stack.back());
-        state_stack.pop_back();
-        if (score >= beta) {
-            ply--;
-            return beta;
-        }
+    int null_move_score = null_move_pruning(board, depth, beta);
+    if (null_move_score >= beta) {
+        ply--;
+        return beta;
     }
 
-    std::vector<Move> move_list;
-    move_list.reserve(32);
-    generate_moves(board, move_list);
+    std::vector<Move> move_list = generate_moves(board);
     sort_moves(board, move_list, tt_move);
-    if (move_list.size() > 0) {
-        if (move_list[0] != pv[ply]) {
-            follow_pv = false;
-        }
-    }
+    follow_pv = check_following_pv(move_list);
 
     bool legal_moves = false;
-    unsigned int pv_index = ply * (2 * MAX_PLY + 1 - ply) / 2;
+    unsigned int pv_index = pv_index_calc(ply);
     int moves_searched = -1;
     int score;
 
     for (size_t i=0; i<move_list.size(); ++i) {
         Move move = move_list[i];
 
-        //Board new_board = board;
-        state_stack.push_back(IrreversableState(board, move));
-        bool king_safe = board.make_move(move);
+        bool king_safe = board.make_move_safe(move, state_stack);
         if (!king_safe) {
-            unmake_move(board, move, state_stack.back());
-            state_stack.pop_back();
             continue;
         }
         moves_searched++;
         legal_moves = true;
 
-        bool draw = false;
-        if (real_repititions.contains(board.hash_key)) {
-            uint8_t count = real_repititions[board.hash_key];
-            if (count == 2 || search_repititions.contains(board.hash_key)) {
-                score = 0;
-                draw = true;
-            }
-        }
+        score = 0;
+        bool draw = check_3_fold_rep(board);
 
         if (!draw) {
             search_repititions.insert(board.hash_key);
@@ -369,12 +369,13 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
                 score = -negamax_rec(board, -beta, -alpha, depth-1);
             } else {
                 // should also look for check and maybe some other stuff
-                bool okay_to_reduce = moves_searched > full_depth_moves
+                bool okay_to_reduce = (moves_searched > full_depth_moves
                     && depth > reduction_limit
                     && !move.get_capture_flag()
                     && !move.get_promotion()
                     && move != killer_moves[0][ply]
-                    && move != killer_moves[1][ply];
+                    && move != killer_moves[1][ply]);
+
                 if (okay_to_reduce) {
                     score = -negamax_rec(board, -alpha-1, -alpha, depth-2);
                 } else {
@@ -390,7 +391,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
             }
         }
 
-        unmake_move(board, move, state_stack.back());
+        board.unmake_move(move, state_stack.back());
         state_stack.pop_back();
         search_repititions.erase(board.hash_key);
 
@@ -435,6 +436,7 @@ int Searcher::negamax_rec(Board &board, int alpha, int beta, int depth) {
             //     printf("ply: %d\n");
             // }
 
+            // https://chessprogramming.org/Triangular_PV-Table#implementations
             std::copy_n(
                 pv.begin() + pv_index + MAX_PLY - ply,
                 MAX_PLY - ply - 1,
@@ -566,51 +568,6 @@ Game::Game(const char *fen, long long time) : S(time) {
 
 Game::Game(const char *fen) : Game(fen, 0) {}
 
-
-
-
-// void play(const char *fen, int moves, int depth) {
-//     Board board = Board(fen);
-//     Searcher S;
-//     printBoard(board);
-    
-//     for (int i = 0; i < moves; i++) {
-//         //int look_ahead = 7;
-//         int mult = -1;
-//         if (board.turn) {
-//             //look_ahead = 6;
-//             mult = 1;
-//         }
-
-//         long long start = current_time_us();
-//         Move move = S.negamax(board, depth);
-//         //move = S.pv[0];
-//         long long duration = current_time_us() - start;
-
-//         printf("\n\nTime: %lld ms\n", duration / 1000);
-//         printf("Time: %lld s\n", duration / 1000000);
-
-//         if (move) {
-//             printf("move:\n");
-//             move.print_move();
-//             board.make_move(move);
-//             printBoard(board);
-//             int score = -evaluate(board);
-//             printf("score: %d\n", score*mult);
-//             printf("Nodes: %lld\n", S.nodes);
-//             print_pv(S.pv);
-//         } else {
-//             printf("No moves!\n");
-
-//             if (is_king_exposed(board, board.turn)) {
-//                 printf("Checkmate!\n");
-//             } else {
-//                 printf("Stalemate!\n");
-//             }
-//             break;
-//         }
-//     }
-// }
 
 
 //int main(int argc, char **argv) {

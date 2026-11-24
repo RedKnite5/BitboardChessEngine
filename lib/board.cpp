@@ -1095,6 +1095,15 @@ void generate_moves(const Board &board, std::vector<Move> &move_list) {
     }
 }
 
+std::vector<Move> generate_moves(const Board &board) {
+    std::vector<Move> move_list;
+    move_list.reserve(32);
+    generate_moves(board, move_list);
+    return move_list;
+}
+
+
+
 // inefficient
 void generate_legal_moves(const Board &board, std::vector<Move> &move_list) {
     generate_moves(board, move_list);
@@ -1281,10 +1290,7 @@ bool Board::make_move(Move move) {
     return !is_king_exposed(*this, side);
 }
 
-
-
-// TODO: finish this and implement stack
-void unmake_move(Board &board, Move move, IrreversableState state) {
+void Board::unmake_move(Move move, IrreversableState state) {
     int source_sq = move.get_move_source();
     int target_sq = move.get_move_target();
     int piece = move.get_move_piece();
@@ -1294,66 +1300,66 @@ void unmake_move(Board &board, Move move, IrreversableState state) {
     bool enpassant = move.get_enpassant_flag();
     bool castle = move.get_castle_flag();
 
-    board.turn ^= 1;
-    board.hash_key ^= side_key;
-    bool side = board.turn;
+    turn ^= 1;
+    hash_key ^= side_key;
+    bool side = turn;
 
     // move piece on appropriate bitboard
-    board.bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
-    board.hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
+    bitboards[piece] ^= (1ULL << source_sq) | (1ULL << target_sq);
+    hash_key ^= piece_keys[piece][source_sq] ^ piece_keys[piece][target_sq];
 
-    board.hash_key ^= castle_keys[board.castleFlags];
-    board.castleFlags = state.castling_rights;
-    board.hash_key ^= castle_keys[board.castleFlags];
+    hash_key ^= castle_keys[castleFlags];
+    castleFlags = state.castling_rights;
+    hash_key ^= castle_keys[castleFlags];
 
-    board.halfMoveClock = state.half_move_clock;
-    board.move -= !side;
+    halfMoveClock = state.half_move_clock;
+    this->move -= !side;
 
     if (capture && !enpassant) {
-        board.bitboards[state.captured] |= (1ULL << target_sq);
-        board.hash_key ^= piece_keys[state.captured][target_sq];
+        bitboards[state.captured] |= (1ULL << target_sq);
+        hash_key ^= piece_keys[state.captured][target_sq];
     }
 
     if (promotion) {
-        board.bitboards[piece] ^= 1ULL << target_sq;
-        board.bitboards[promotion] ^= 1ULL << target_sq;
-        board.hash_key ^= piece_keys[piece][target_sq] ^ piece_keys[promotion][target_sq];
+        bitboards[piece] ^= 1ULL << target_sq;
+        bitboards[promotion] ^= 1ULL << target_sq;
+        hash_key ^= piece_keys[piece][target_sq] ^ piece_keys[promotion][target_sq];
     }
 
     if (double_shift) {
-        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+        hash_key ^= enpassant_keys[ep_index_calc(enPassantSquare)];
     }
 
-    board.enPassantSquare = state.ep_square;
+    enPassantSquare = state.ep_square;
 
-    if (board.enPassantSquare < 64) {
-        board.hash_key ^= enpassant_keys[ep_index_calc(board.enPassantSquare)];
+    if (enPassantSquare < 64) {
+        hash_key ^= enpassant_keys[ep_index_calc(enPassantSquare)];
     }
 
     if (enpassant) {
         Piece opp_piece = piece_select(p, !side);
         int taken_sq = target_sq + 8 - side*two_rows;
-        board.bitboards[opp_piece] ^= 1ULL << taken_sq;
-        board.hash_key ^= piece_keys[opp_piece][taken_sq];
+        bitboards[opp_piece] ^= 1ULL << taken_sq;
+        hash_key ^= piece_keys[opp_piece][taken_sq];
     }
 
     if (castle) {
         switch (target_sq) {
         case C1:
-            board.bitboards[R] ^= 1ULL | (1ULL << D1);
-            board.hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
+            bitboards[R] ^= 1ULL | (1ULL << D1);
+            hash_key ^= piece_keys[R][A1] ^ piece_keys[R][D1];
             break;
         case G1:
-            board.bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
-            board.hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
+            bitboards[R] ^= (1ULL << H1) | (1ULL << F1);
+            hash_key ^= piece_keys[R][H1] ^ piece_keys[R][F1];
             break;
         case C8:
-            board.bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
-            board.hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
+            bitboards[r] ^= (1ULL << A8) | (1ULL << D8);
+            hash_key ^= piece_keys[r][A8] ^ piece_keys[r][D8];
             break;
         case G8:
-            board.bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
-            board.hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
+            bitboards[r] ^= (1ULL << H8) | (1ULL << F8);
+            hash_key ^= piece_keys[r][H8] ^ piece_keys[r][F8];
             break;
         
         default:
@@ -1362,24 +1368,34 @@ void unmake_move(Board &board, Move move, IrreversableState state) {
         }
     }
 
-    board.coloredPieces[BLACK] = board.bitboards[p]
-                               | board.bitboards[r]
-                               | board.bitboards[n]
-                               | board.bitboards[b]
-                               | board.bitboards[q]
-                               | board.bitboards[k];
+    coloredPieces[BLACK] = bitboards[p]
+                               | bitboards[r]
+                               | bitboards[n]
+                               | bitboards[b]
+                               | bitboards[q]
+                               | bitboards[k];
 
-    board.coloredPieces[WHITE] = board.bitboards[P]
-                               | board.bitboards[R]
-                               | board.bitboards[N]
-                               | board.bitboards[B]
-                               | board.bitboards[Q]
-                               | board.bitboards[K];
+    coloredPieces[WHITE] = bitboards[P]
+                               | bitboards[R]
+                               | bitboards[N]
+                               | bitboards[B]
+                               | bitboards[Q]
+                               | bitboards[K];
 
 
-    board.allPieces = board.coloredPieces[BLACK] | board.coloredPieces[WHITE];
+    allPieces = coloredPieces[BLACK] | coloredPieces[WHITE];
 }
 
+bool Board::make_move_safe(Move move, std::vector<IrreversableState> &state_stack) {
+    state_stack.push_back(IrreversableState(*this, move));
+    bool king_safe = make_move(move);
+    if (king_safe) {
+        return true;
+    }
+    unmake_move(move, state_stack.back());
+    state_stack.pop_back();
+    return false;
+}
 
 void make_null_move(Board &board) {
     board.move += !board.turn;

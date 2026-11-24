@@ -347,7 +347,7 @@ c-chess-cli_linux -log -each tc=20+.5 option."Move Overhead"=500 \
     -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal
 
 c-chess-cli_linux -sprt elo1=10 -games 10 -concurrency 10 -log -each tc=20+.5 option."Move Overhead"=500 \
-    -engine option.UCI_LimitStrength=true option.UCI_Elo=1500 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
+    -engine option.UCI_LimitStrength=true option.UCI_Elo=1700 option.Threads=1 cmd=~/chess_utils/stockfish/stockfish-linux-x86-64-universal \
     -engine cmd=./UCI_app
 
 
